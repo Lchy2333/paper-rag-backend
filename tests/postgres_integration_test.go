@@ -1,4 +1,4 @@
-package store
+package tests
 
 import (
 	"context"
@@ -7,15 +7,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/model"
+	"paper-rag-backend/internal/store"
 )
 
 // TestPostgresStore 是针对真实 PostgreSQL 的集成测试。
 // 运行前需设置数据库密码（其他项可用默认值）：
 //
 //	$env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-//	go test ./internal/store -run TestPostgresStore -v
+//	go test ./tests -run TestPostgresStore -v
 //
 // 未设置该环境变量时测试自动跳过（不影响 go test ./...）。
 func TestPostgresStore(t *testing.T) {
@@ -35,7 +38,7 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s, err := NewPostgresStore(ctx, cfg.DSN(), 5)
+	s, err := store.NewPostgresStore(ctx, cfg.DSN(), 5)
 	if err != nil {
 		t.Fatalf("连接数据库失败: %v", err)
 	}
@@ -45,7 +48,7 @@ func TestPostgresStore(t *testing.T) {
 	ts := time.Now().UnixNano()
 	docID := "test-doc-" + itoa(ts)
 	chunkIDs := []string{"test-c1-" + itoa(ts), "test-c2-" + itoa(ts), "test-c3-" + itoa(ts)}
-	defer cleanupPostgres(ctx, s, docID, chunkIDs)
+	defer cleanupPostgres(ctx, s, docID)
 
 	// 1. 保存文档
 	doc := &model.Document{
@@ -115,8 +118,14 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	// 5.1 NULL 字段兼容：手工插入 error/title 为 NULL 的行，列表不应报错
+	// （黑盒测试无法访问 store 内部的连接池，这里自建一条连接执行裸 SQL）
+	pool, err := pgxpool.New(ctx, cfg.DSN())
+	if err != nil {
+		t.Fatalf("自建连接池失败: %v", err)
+	}
 	nullDocID := "test-null-" + itoa(ts)
-	_, err = s.pool.Exec(ctx, `INSERT INTO documents (id, filename, status) VALUES ($1, 'null.pdf', 'ready')`, nullDocID)
+	_, err = pool.Exec(ctx, `INSERT INTO documents (id, filename, status) VALUES ($1, 'null.pdf', 'ready')`, nullDocID)
+	pool.Close()
 	if err != nil {
 		t.Fatalf("插入 NULL 测试行失败: %v", err)
 	}
@@ -160,7 +169,7 @@ func testVector1024(pos int) []float32 {
 	return v
 }
 
-func cleanupPostgres(ctx context.Context, s Store, docID string, chunkIDs []string) {
+func cleanupPostgres(ctx context.Context, s store.Store, docID string) {
 	_ = s.DeleteDocument(ctx, docID)
 }
 

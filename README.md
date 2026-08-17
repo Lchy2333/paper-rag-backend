@@ -25,6 +25,7 @@ internal/ai/           # Embedding + Chat 客户端
 internal/store/        # 存储接口 + 内存/PostgreSQL 实现
 internal/service/      # 摄入流水线 / RAG 问答
 internal/httpapi/      # Gin 路由与处理器
+tests/                 # 全部测试用例（黑盒测试，package tests）
 uploads/               # 上传的 PDF 落盘目录
 ```
 
@@ -153,6 +154,8 @@ curl -X POST http://localhost:8080/api/v1/ask \
 
 ## 测试
 
+测试用例集中放在 `tests/` 目录（黑盒测试，`package tests`）：
+
 ```bash
 go test ./...            # 单元测试（不含数据库集成测试）
 ```
@@ -161,7 +164,7 @@ PostgreSQL 集成测试需提供真实数据库密码（未设置则自动跳过
 
 ```powershell
 $env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-go test ./internal/store -run TestPostgresStore -v
+go test ./tests -run TestPostgresStore -v
 ```
 
 ## 存储层切换

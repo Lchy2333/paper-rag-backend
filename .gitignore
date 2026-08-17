@@ -18,3 +18,4 @@ config/config.yaml
 # IDE
 .idea/
 .vscode/
+/避坑.txt
