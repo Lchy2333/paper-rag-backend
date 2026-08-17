@@ -93,3 +93,6 @@ func (m *MemoryStore) Search(_ context.Context, query []float32, topK int, thres
 	}
 	return results, nil
 }
+
+// 编译期断言：*MemoryStore 必须满足 Store 接口（漏实现方法会编译报错）。
+var _ Store = (*MemoryStore)(nil)

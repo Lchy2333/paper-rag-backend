@@ -1,4 +1,4 @@
-package store
+package tests
 
 import (
 	"context"
@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"paper-rag-backend/internal/model"
+	"paper-rag-backend/internal/store"
 )
 
 func TestMemoryStore_SearchBySimilarity(t *testing.T) {
-	s := NewMemoryStore()
+	s := store.NewMemoryStore()
 	ctx := context.Background()
 
 	_ = s.AddChunks(ctx, []model.Chunk{
@@ -32,7 +33,7 @@ func TestMemoryStore_SearchBySimilarity(t *testing.T) {
 }
 
 func TestMemoryStore_ThresholdFilter(t *testing.T) {
-	s := NewMemoryStore()
+	s := store.NewMemoryStore()
 	ctx := context.Background()
 	_ = s.AddChunks(ctx, []model.Chunk{
 		{ID: "1", Vector: []float32{1, 0}},
@@ -48,7 +49,7 @@ func TestMemoryStore_ThresholdFilter(t *testing.T) {
 }
 
 func TestMemoryStore_DeleteDocument(t *testing.T) {
-	s := NewMemoryStore()
+	s := store.NewMemoryStore()
 	ctx := context.Background()
 	_ = s.AddChunks(ctx, []model.Chunk{{ID: "c1", DocumentID: "d1", Vector: []float32{1, 0}}})
 	_ = s.SaveDocument(ctx, &model.Document{ID: "d1", Filename: "a.pdf", Status: "ready"})
@@ -69,11 +70,11 @@ func TestMemoryStore_DeleteDocument(t *testing.T) {
 func TestCosineSimilarity(t *testing.T) {
 	a := []float32{1, 0, 0}
 	b := []float32{0, 1, 0}
-	if got := CosineSimilarity(a, b); got != 0 {
+	if got := store.CosineSimilarity(a, b); got != 0 {
 		t.Fatalf("正交向量相似度 = %v, want 0", got)
 	}
 	c := []float32{2, 0, 0}
-	if got := CosineSimilarity(a, c); math.Abs(float64(got-1)) > 1e-6 {
+	if got := store.CosineSimilarity(a, c); math.Abs(float64(got-1)) > 1e-6 {
 		t.Fatalf("同向向量相似度 = %v, want 1", got)
 	}
 }

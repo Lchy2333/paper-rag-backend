@@ -1,10 +1,12 @@
-package parser
+package tests
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 	"testing"
+
+	"paper-rag-backend/internal/parser"
 )
 
 // buildTestPDF 生成一个含指定文本的合法单页 PDF，用于测试解析。
@@ -49,7 +51,7 @@ func TestParsePDF(t *testing.T) {
 		t.Fatalf("生成测试 PDF 失败: %v", err)
 	}
 
-	doc, err := ParsePDF(bytes.NewReader(data), int64(len(data)))
+	doc, err := parser.ParsePDF(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Fatalf("ParsePDF 失败: %v", err)
 	}

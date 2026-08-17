@@ -1,12 +1,14 @@
-package chunker
+package tests
 
 import (
 	"strings"
 	"testing"
+
+	"paper-rag-backend/internal/chunker"
 )
 
 func TestSplitPages_SingleShortPage(t *testing.T) {
-	chunks := SplitPages([]string{"hello world"}, ChunkConfig{Size: 800, Overlap: 100})
+	chunks := chunker.SplitPages([]string{"hello world"}, chunker.ChunkConfig{Size: 800, Overlap: 100})
 	if len(chunks) != 1 {
 		t.Fatalf("chunks = %d, want 1", len(chunks))
 	}
@@ -20,8 +22,8 @@ func TestSplitPages_SingleShortPage(t *testing.T) {
 
 func TestSplitPages_MultiChunkOverlap(t *testing.T) {
 	text := strings.Repeat("这是一段用于测试分块的中文内容。", 50)
-	cfg := ChunkConfig{Size: 60, Overlap: 15}
-	chunks := SplitPages([]string{text}, cfg)
+	cfg := chunker.ChunkConfig{Size: 60, Overlap: 15}
+	chunks := chunker.SplitPages([]string{text}, cfg)
 
 	if len(chunks) < 2 {
 		t.Fatalf("chunks = %d, want >= 2", len(chunks))
@@ -46,14 +48,14 @@ func TestSplitPages_MultiChunkOverlap(t *testing.T) {
 }
 
 func TestSplitPages_BlankPage(t *testing.T) {
-	chunks := SplitPages([]string{"   \n  "}, ChunkConfig{Size: 100, Overlap: 20})
+	chunks := chunker.SplitPages([]string{"   \n  "}, chunker.ChunkConfig{Size: 100, Overlap: 20})
 	if len(chunks) != 0 {
 		t.Fatalf("空白页应产生 0 个 chunk, got %d", len(chunks))
 	}
 }
 
 func TestSplitPages_PageNumbering(t *testing.T) {
-	chunks := SplitPages([]string{"page one content", "page two content"}, ChunkConfig{Size: 1000, Overlap: 0})
+	chunks := chunker.SplitPages([]string{"page one content", "page two content"}, chunker.ChunkConfig{Size: 1000, Overlap: 0})
 	if len(chunks) != 2 {
 		t.Fatalf("chunks = %d, want 2", len(chunks))
 	}

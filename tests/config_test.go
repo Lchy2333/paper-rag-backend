@@ -1,9 +1,11 @@
-package config
+package tests
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"paper-rag-backend/internal/config"
 )
 
 func writeTemp(t *testing.T, content string) string {
@@ -37,8 +39,8 @@ rag:
 database:
   type: "postgres"
   password: "db-pass"
-`) 
-	cfg, err := Load(p)
+`)
+	cfg, err := config.Load(p)
 	if err != nil {
 		t.Fatalf("Load 失败: %v", err)
 	}
@@ -66,7 +68,7 @@ database:
   type: "postgres"
   password: "db-pass"
 `)
-	cfg, err := Load(p)
+	cfg, err := config.Load(p)
 	if err != nil {
 		t.Fatalf("Load 失败: %v", err)
 	}
@@ -84,7 +86,7 @@ ai:
   chat:
     model: "c"
 `)
-	if _, err := Load(p); err == nil {
+	if _, err := config.Load(p); err == nil {
 		t.Fatalf("缺少 api_key 时应报错")
 	}
 }
