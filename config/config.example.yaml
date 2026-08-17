@@ -1,0 +1,51 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  max_upload_size_mb: 20
+  upload_dir: "./uploads"
+  read_timeout_sec: 60
+  write_timeout_sec: 300
+
+ai:
+  provider: "openai-compatible"
+  # OpenAI 兼容接口的 base_url，例如：
+  #   OpenAI:      https://api.openai.com/v1
+  #   DeepSeek:    https://api.deepseek.com/v1
+  #   Qwen/通义:   https://dashscope.aliyuncs.com/compatible-mode/v1
+  #   Ollama 本地: http://localhost:11434/v1
+  base_url: "http://localhost:11434/v1"
+  # 支持 ${ENV_VAR} 语法引用环境变量，例如 ${OPENAI_API_KEY}。
+  # Ollama 本地不需要 key，填任意值即可。
+  api_key: "ollama"
+  timeout_sec: 300
+
+  embedding:
+    # 使用 Ollama 本地多语言向量模型 bge-m3，中文/英文混合语义强，维度 1024
+    # （必须与数据库 VECTOR(n) 一致）
+    model: "bge-m3"
+    dimension: 1024
+    batch_size: 16
+
+  chat:
+    model: "qwen3:8b"
+    temperature: 0.2
+    max_tokens: 2048
+
+rag:
+  chunk_size: 800
+  chunk_overlap: 150
+  top_k: 5
+  similarity_threshold: 0.0
+  # 检索不到相关内容时的兜底回复
+  no_context_reply: "抱歉，在已上传的文档中没有找到与您问题相关的内容。"
+
+database:
+  # 存储实现：postgres（本地数据库，推荐）或 memory（内存，重启丢失）
+  type: "postgres"
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "${POSTGRES_PASSWORD}"
+  dbname: "paper_rag"
+  sslmode: "disable"
+  max_conns: 10

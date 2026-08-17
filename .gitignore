@@ -1,0 +1,20 @@
+# 依赖
+go.sum
+vendor/
+
+# 构建产物
+/bin/
+*.exe
+*.test
+
+# 上传文件
+uploads/
+
+# 配置（含密钥，不入库）
+config/config.yaml
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/

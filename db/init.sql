@@ -1,0 +1,36 @@
+-- paper_rag 数据库初始化脚本
+-- 用法: psql -U postgres -f db/init.sql
+-- 或在 Navicat 中新建数据库 paper_rag 后，在查询窗口执行本文件内容。
+
+-- 1. 开启向量扩展（每个库执行一次）
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 2. 文档表：每篇论文一行
+CREATE TABLE IF NOT EXISTS documents (
+    id          VARCHAR(32) PRIMARY KEY,
+    filename    VARCHAR(255) NOT NULL,
+    title       VARCHAR(255),
+    page_count  INTEGER NOT NULL DEFAULT 0,
+    size_bytes  BIGINT  NOT NULL DEFAULT 0,
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    status      VARCHAR(20) NOT NULL DEFAULT 'pending',
+    error       TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 3. 分块向量表：每个文本片段一行，含向量
+--    注意: embedding 维度必须与 config.yaml 中 ai.embedding.dimension 一致
+--    默认使用 Ollama bge-m3 (1024 维)
+CREATE TABLE IF NOT EXISTS chunks (
+    id          VARCHAR(32) PRIMARY KEY,
+    document_id VARCHAR(32) NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    page        INTEGER NOT NULL,
+    idx         INTEGER NOT NULL,
+    content     TEXT NOT NULL,
+    embedding   VECTOR(1024),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 4. 向量检索索引（HNSW + 余弦相似度）
+--    注意: 若 embedding 模型维度不是 1536，请先调整 chunks.embedding 的维度
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks USING hnsw (embedding vector_cosine_ops);
