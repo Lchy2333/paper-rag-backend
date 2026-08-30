@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +41,9 @@ func NewIngestService(c *ai.Client, s store.Store, cfg config.ServerConfig, rag 
 // ErrUnsupportedType 表示上传的文件类型不受支持。
 var ErrUnsupportedType = errors.New("不支持的文件类型，仅支持 PDF")
 
+// ErrDuplicateDocument 表示上传的文件内容与库中已有文档相同（内容哈希一致）。
+var ErrDuplicateDocument = errors.New("文档已存在（内容相同），已跳过重复上传")
+
 // Process 处理一个上传的文件并返回入库后的文档。
 func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int64, filename string) (*model.Document, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
@@ -58,13 +63,14 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		CreatedAt: time.Now(),
 	}
 
-	// 1. 落盘保存原始文件
+	// 1. 落盘保存原始文件，同时计算内容哈希（SHA-256）用于去重
 	diskPath := filepath.Join(s.uploadDir, doc.ID+ext)
 	f, err := os.Create(diskPath)
 	if err != nil {
 		return nil, fmt.Errorf("保存上传文件失败: %w", err)
 	}
-	written, err := io.Copy(f, io.NewSectionReader(file, 0, size))
+	h := sha256.New()
+	written, err := io.Copy(io.MultiWriter(f, h), io.NewSectionReader(file, 0, size))
 	cerr := f.Close()
 	if err != nil {
 		return nil, fmt.Errorf("写入上传文件失败: %w", err)
@@ -73,6 +79,19 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		return nil, cerr
 	}
 	_ = written
+	doc.ContentHash = hex.EncodeToString(h.Sum(nil))
+
+	// 1.5 去重：内容哈希已存在则跳过（删除刚落盘的文件）。
+	// 注意：仅当已有文档不是 failed 时才视为重复——失败文档说明内容从未入库，
+	// 允许重新上传重试。
+	existing, err := s.store.FindByContentHash(ctx, doc.ContentHash)
+	if err != nil {
+		return nil, fmt.Errorf("检查重复文档失败: %w", err)
+	}
+	if existing != nil && existing.Status != "failed" {
+		_ = os.Remove(diskPath)
+		return existing, ErrDuplicateDocument
+	}
 
 	// 2. 解析 PDF
 	parsed, err := parser.ParsePDF(file, size)
