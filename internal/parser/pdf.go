@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -17,7 +18,11 @@ type ParsedDocument struct {
 
 // ParsePDF 从 reader 解析 PDF，返回按页划分的文本。
 func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
-	reader, err := pdf.NewReader(r, size)
+	end, err := trimTrailingJunk(r, size)
+	if err != nil {
+		return nil, fmt.Errorf("无法读取 PDF: %w", err)
+	}
+	reader, err := pdf.NewReader(io.NewSectionReader(r, 0, end), end)
 	if err != nil {
 		return nil, fmt.Errorf("无法读取 PDF: %w", err)
 	}
@@ -38,6 +43,35 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 		doc.Pages = append(doc.Pages, normalizeText(text))
 	}
 	return doc, nil
+}
+
+// trimTrailingJunk 返回 PDF 有效部分的结束位置。
+// 部分来源（如知网 CNKI）会在 %%EOF 之后追加 XML 元数据，而解析库
+// ledongthuc/pdf 要求文件末尾正好是 %%EOF（只读最后 100 字节做 HasSuffix 校验），
+// 否则报 missing %%EOF。这里从尾部往前找最后一个 %%EOF，若其后还有内容则
+// 截断到该位置；找不到 %%EOF 则原样返回 size（交给解析库报正常错误）。
+func trimTrailingJunk(r io.ReaderAt, size int64) (int64, error) {
+	const scanWindow = 1 << 20 // 最多往回扫描 1MB，覆盖常规追加的元数据
+	start := size - scanWindow
+	if start < 0 {
+		start = 0
+	}
+	buf := make([]byte, size-start)
+	n, err := r.ReadAt(buf, start)
+	if err != nil && err != io.EOF {
+		return size, err
+	}
+	buf = buf[:n]
+
+	idx := bytes.LastIndex(buf, []byte("%%EOF"))
+	if idx < 0 {
+		return size, nil
+	}
+	end := start + int64(idx) + int64(len("%%EOF"))
+	if end >= size {
+		return size, nil
+	}
+	return end, nil
 }
 
 // inferTitle 从元数据或第一页前几行猜测文档标题。

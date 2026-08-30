@@ -52,14 +52,15 @@ func TestPostgresStore(t *testing.T) {
 
 	// 1. 保存文档
 	doc := &model.Document{
-		ID:         docID,
-		Filename:   "integration-test.pdf",
-		Title:      "集成测试文档",
-		PageCount:  3,
-		SizeBytes:  12345,
-		ChunkCount: 3,
-		Status:     "ready",
-		CreatedAt:  time.Now(),
+		ID:          docID,
+		Filename:    "integration-test.pdf",
+		Title:       "集成测试文档",
+		PageCount:   3,
+		SizeBytes:   12345,
+		ChunkCount:  3,
+		Status:      "ready",
+		ContentHash: "testhash-" + itoa(ts),
+		CreatedAt:   time.Now(),
 	}
 	if err := s.SaveDocument(ctx, doc); err != nil {
 		t.Fatalf("SaveDocument 失败: %v", err)
@@ -72,6 +73,19 @@ func TestPostgresStore(t *testing.T) {
 	}
 	if got.Status != "ready" || got.PageCount != 3 {
 		t.Fatalf("GetDocument 字段不对: %+v", got)
+	}
+	if got.ContentHash != doc.ContentHash {
+		t.Fatalf("GetDocument 未带回 content_hash: %q", got.ContentHash)
+	}
+
+	// 2.1 按内容哈希查找（上传去重）：命中 / 未命中
+	byHash, err := s.FindByContentHash(ctx, doc.ContentHash)
+	if err != nil || byHash == nil || byHash.ID != docID {
+		t.Fatalf("FindByContentHash 应命中: err=%v byHash=%v", err, byHash)
+	}
+	miss, err := s.FindByContentHash(ctx, "no-such-hash")
+	if err != nil || miss != nil {
+		t.Fatalf("FindByContentHash 未命中应返回 nil: err=%v miss=%v", err, miss)
 	}
 
 	// 3. 批量写入分块（维度与表定义的 VECTOR(1024) 一致）

@@ -97,10 +97,73 @@ go run ./cmd/server -config config/config.yaml
 
 ### 5. 使用
 
-**上传 PDF 并入库**
+**上传 PDF 并入库（支持一次多个，`-F` 可重复）**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/documents -F "file=@paper.pdf"
+curl -X POST http://localhost:8080/api/v1/documents \
+  -F "file=@paper-a.pdf" \
+  -F "file=@paper-b.pdf"
+```
+
+返回**逐条带状态**的结果（HTTP 恒为 200；单文件失败不影响其他文件）：
+
+```json
+{
+    "total": 2,
+    "success_count": 1,
+    "failed_count": 1,
+    "results": [
+        {
+            "filename": "paper-a.pdf",
+            "success": true,
+            "document_id": "xxx",
+            "page_count": 182,
+            "size_bytes": 12761948,
+            "duration_ms": 3500
+        },
+        {
+            "filename": "paper-b.pdf",
+            "success": false,
+            "document_id": "yyy",
+            "page_count": 0,
+            "size_bytes": 5678,
+            "duration_ms": 120,
+            "error": "PDF 解析失败: ..."
+        }
+    ]
+}
+```
+
+- `success: true` 的文件已入库，`document_id` 可用于后续指定文档检索
+- `success: false` 的文件带 `error` 说明原因，其他文件照常入库
+
+**上传去重**：上传时对每个文件计算 SHA-256 并存入 `documents.content_hash`。若库中已有**内容相同**的文档（且非 `failed` 状态），该文件会被标记为 `duplicate: true` 并跳过，不会重复入库（`duplicate_count` 单独统计，不计入失败）：
+
+```json
+{
+    "total": 1,
+    "success_count": 0,
+    "failed_count": 0,
+    "duplicate_count": 1,
+    "results": [
+        {
+            "filename": "paper-a.pdf",
+            "success": false,
+            "duplicate": true,
+            "document_id": "已有文档的 id",
+            "error": "文档已存在（内容相同），已跳过重复上传"
+        }
+    ]
+}
+```
+
+> 说明：`failed` 状态的文档不参与去重（内容从未入库），允许重新上传重试。
+
+**旧库升级**（已有数据库需手动执行一次，新库执行 `db/init.sql` 已包含）：
+
+```sql
+ALTER TABLE documents ADD COLUMN content_hash VARCHAR(64);
+CREATE UNIQUE INDEX idx_documents_content_hash ON documents(content_hash) WHERE status <> 'failed';
 ```
 
 **针对文档提问（RAG）**
@@ -137,7 +200,7 @@ curl -X POST http://localhost:8080/api/v1/ask \
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查 |
-| POST | `/api/v1/documents` | 上传 PDF（multipart 字段 `file`），解析并向量化入库 |
+| POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复），逐个解析并向量化入库 |
 | GET | `/api/v1/documents` | 列出全部文档 |
 | GET | `/api/v1/documents/:id` | 查询文档详情 |
 | DELETE | `/api/v1/documents/:id` | 删除文档及向量（级联删除 chunks）|

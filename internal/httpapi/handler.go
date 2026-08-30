@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -11,15 +14,24 @@ import (
 	"paper-rag-backend/internal/service"
 )
 
+// documentService 是 Handler 对文档服务的依赖抽象，由 main 注入 *service.IngestService。
+// 抽象成接口便于对 HTTP 层做单测（用假实现替换真实服务）。
+type documentService interface {
+	Process(ctx context.Context, file io.ReaderAt, size int64, filename string) (*model.Document, error)
+	Get(ctx context.Context, id string) (*model.Document, error)
+	List(ctx context.Context) ([]model.Document, error)
+	Delete(ctx context.Context, id string) error
+}
+
 // Handler 聚合所有 HTTP 处理器依赖。
 type Handler struct {
-	ingest         *service.IngestService
+	ingest         documentService
 	ask            *service.AskService
 	maxUploadBytes int64
 }
 
 // NewHandler 创建处理器。
-func NewHandler(ingest *service.IngestService, ask *service.AskService, maxUploadMB int64) *Handler {
+func NewHandler(ingest documentService, ask *service.AskService, maxUploadMB int64) *Handler {
 	return &Handler{
 		ingest:         ingest,
 		ask:            ask,
@@ -32,31 +44,74 @@ func (h *Handler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 }
 
-// UploadDocument 上传并摄入 PDF 文档。
+// UploadDocument 上传并摄入一个或多个 PDF 文档。
+// 逐个处理、互不影响：单个文件失败只标记该条结果，不拖累其他文件。
+// 统一返回 200 + 逐条带状态的 results，便于批量查看。
 func (h *Handler) UploadDocument(c *gin.Context) {
-	file, header, err := c.Request.FormFile("file")
+	form, err := c.MultipartForm()
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "解析上传表单失败: " + err.Error()})
+		return
+	}
+	files := form.File["file"]
+	if len(files) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少文件字段 file"})
 		return
 	}
-	defer file.Close()
 
-	if header.Size > h.maxUploadBytes {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "文件过大"})
-		return
-	}
+	results := make([]model.UploadResult, 0, len(files))
+	success, failed, duplicates := 0, 0, 0
+	maxMB := h.maxUploadBytes / (1024 * 1024)
 
-	doc, err := h.ingest.Process(c.Request.Context(), file, header.Size, header.Filename)
-	if err != nil {
-		if errors.Is(err, service.ErrUnsupportedType) {
-			c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": err.Error()})
-			return
+	for _, fh := range files {
+		r := model.UploadResult{Filename: fh.Filename, SizeBytes: fh.Size}
+
+		if fh.Size > h.maxUploadBytes {
+			r.Error = fmt.Sprintf("文件过大（超过 %d MB）", maxMB)
+			failed++
+			results = append(results, r)
+			continue
 		}
-		// 摄入失败时返回 422，同时附带文档状态便于排查
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error(), "document": doc})
-		return
+
+		start := time.Now()
+		f, err := fh.Open()
+		if err != nil {
+			r.Error = fmt.Sprintf("读取上传文件失败: %v", err)
+			failed++
+			results = append(results, r)
+			continue
+		}
+		doc, perr := h.ingest.Process(c.Request.Context(), f, fh.Size, fh.Filename)
+		_ = f.Close()
+		r.DurationMS = time.Since(start).Milliseconds()
+
+		if doc != nil {
+			r.DocumentID = doc.ID
+			r.PageCount = doc.PageCount
+		}
+		if perr != nil {
+			if errors.Is(perr, service.ErrDuplicateDocument) {
+				r.Duplicate = true
+				r.Error = perr.Error()
+				duplicates++
+			} else {
+				r.Error = perr.Error()
+				failed++
+			}
+		} else {
+			r.Success = true
+			success++
+		}
+		results = append(results, r)
 	}
-	c.JSON(http.StatusCreated, gin.H{"document": doc})
+
+	c.JSON(http.StatusOK, gin.H{
+		"total":           len(results),
+		"success_count":   success,
+		"failed_count":    failed,
+		"duplicate_count": duplicates,
+		"results":         results,
+	})
 }
 
 // ListDocuments 列出所有文档。

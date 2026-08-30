@@ -4,15 +4,16 @@ import "time"
 
 // Document 表示一篇上传并解析后的文档。
 type Document struct {
-	ID         string    `json:"id"`
-	Filename   string    `json:"filename"`
-	Title      string    `json:"title"`
-	PageCount  int       `json:"page_count"`
-	SizeBytes  int64     `json:"size_bytes"`
-	ChunkCount int       `json:"chunk_count"`
-	Status     string    `json:"status"` // pending / ready / failed
-	Error      string    `json:"error,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Filename    string    `json:"filename"`
+	Title       string    `json:"title"`
+	PageCount   int       `json:"page_count"`
+	SizeBytes   int64     `json:"size_bytes"`
+	ChunkCount  int       `json:"chunk_count"`
+	Status      string    `json:"status"` // pending / ready / failed
+	Error       string    `json:"error,omitempty"`
+	ContentHash string    `json:"content_hash,omitempty"` // 原始文件 SHA-256，用于上传去重
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Chunk 是文档被切分后的文本片段，带向量用于检索。
@@ -32,6 +33,18 @@ type Question struct {
 	Query       string   `json:"query" binding:"required"`
 	TopK        int      `json:"top_k"`               // 可选，覆盖默认 top_k
 	DocumentIDs []string `json:"document_ids,omitempty"` // 可选，限定检索范围；为空则全库检索
+}
+
+// UploadResult 是多文件上传时单个文件的处理结果。
+type UploadResult struct {
+	Filename   string `json:"filename"`
+	Success    bool   `json:"success"`
+	Duplicate  bool   `json:"duplicate,omitempty"` // 内容重复，已跳过（区别于失败）
+	DocumentID string `json:"document_id,omitempty"`
+	PageCount  int    `json:"page_count"`
+	SizeBytes  int64  `json:"size_bytes"`
+	DurationMS int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }
 
 // Answer 是 RAG 的回答结果。

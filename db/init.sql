@@ -7,16 +7,21 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 2. 文档表：每篇论文一行
 CREATE TABLE IF NOT EXISTS documents (
-    id          VARCHAR(32) PRIMARY KEY,
-    filename    VARCHAR(255) NOT NULL,
-    title       VARCHAR(255),
-    page_count  INTEGER NOT NULL DEFAULT 0,
-    size_bytes  BIGINT  NOT NULL DEFAULT 0,
-    chunk_count INTEGER NOT NULL DEFAULT 0,
-    status      VARCHAR(20) NOT NULL DEFAULT 'pending',
-    error       TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id           VARCHAR(32) PRIMARY KEY,
+    filename     VARCHAR(255) NOT NULL,
+    title        VARCHAR(255),
+    page_count   INTEGER NOT NULL DEFAULT 0,
+    size_bytes   BIGINT  NOT NULL DEFAULT 0,
+    chunk_count  INTEGER NOT NULL DEFAULT 0,
+    status       VARCHAR(20) NOT NULL DEFAULT 'pending',
+    error        TEXT,
+    content_hash VARCHAR(64),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 2.1 内容哈希去重：同一文件 SHA-256 唯一（failed 文档除外，允许重传重试）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash
+    ON documents(content_hash) WHERE status <> 'failed';
 
 -- 3. 分块向量表：每个文本片段一行，含向量
 --    注意: embedding 维度必须与 config.yaml 中 ai.embedding.dimension 一致

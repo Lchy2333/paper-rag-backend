@@ -53,8 +53,8 @@ func (s *PostgresStore) Close() {
 
 func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO documents (id, filename, title, page_count, size_bytes, chunk_count, status, error, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO documents (id, filename, title, page_count, size_bytes, chunk_count, status, error, content_hash, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (id) DO UPDATE SET
 			filename = EXCLUDED.filename,
 			title = EXCLUDED.title,
@@ -64,7 +64,7 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 			status = EXCLUDED.status,
 			error = EXCLUDED.error`,
 		doc.ID, doc.Filename, doc.Title, doc.PageCount, doc.SizeBytes,
-		doc.ChunkCount, doc.Status, doc.Error, doc.CreatedAt,
+		doc.ChunkCount, doc.Status, doc.Error, doc.ContentHash, doc.CreatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("保存文档失败: %w", err)
@@ -75,10 +75,10 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), created_at
+		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
 		FROM documents WHERE id = $1`, id,
 	).Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
-		&d.ChunkCount, &d.Status, &d.Error, &d.CreatedAt)
+		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -90,7 +90,7 @@ func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Docu
 
 func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), created_at
+		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
 		FROM documents ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("查询文档列表失败: %w", err)
@@ -101,12 +101,29 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 	for rows.Next() {
 		var d model.Document
 		if err := rows.Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
-			&d.ChunkCount, &d.Status, &d.Error, &d.CreatedAt); err != nil {
+			&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt); err != nil {
 			return nil, fmt.Errorf("读取文档列表失败: %w", err)
 		}
 		docs = append(docs, d)
 	}
 	return docs, rows.Err()
+}
+
+// FindByContentHash 按内容哈希查找文档（上传去重用），找不到返回 nil。
+func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
+	var d model.Document
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		FROM documents WHERE content_hash = $1`, hash,
+	).Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
+		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("按内容哈希查询文档失败: %w", err)
+	}
+	return &d, nil
 }
 
 // DeleteDocument 删除文档，其 chunks 由外键 ON DELETE CASCADE 自动级联删除。

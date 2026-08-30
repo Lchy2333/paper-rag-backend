@@ -25,6 +25,8 @@ type Store interface {
 	GetDocument(ctx context.Context, id string) (*model.Document, error)
 	ListDocuments(ctx context.Context) ([]model.Document, error)
 	DeleteDocument(ctx context.Context, id string) error
+	// FindByContentHash 按内容哈希（文件 SHA-256）查找文档，用于上传去重；找不到返回 nil。
+	FindByContentHash(ctx context.Context, hash string) (*model.Document, error)
 
 	// ---- 向量 ----
 	AddChunks(ctx context.Context, chunks []model.Chunk) error
