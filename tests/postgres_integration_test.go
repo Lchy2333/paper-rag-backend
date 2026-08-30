@@ -102,6 +102,29 @@ func TestPostgresStore(t *testing.T) {
 		t.Fatalf("JOIN documents 未带回 filename: %q", results[0].Chunk.Filename)
 	}
 
+	// 4.1 指定文档检索：限定在 docID 范围内，结果应全部来自该文档
+	filtered, err := s.Search(ctx, query, 5, 0.5, docID)
+	if err != nil {
+		t.Fatalf("Search(限定文档) 失败: %v", err)
+	}
+	if len(filtered) == 0 {
+		t.Fatalf("限定文档检索未返回结果")
+	}
+	for _, r := range filtered {
+		if r.Chunk.DocumentID != docID {
+			t.Fatalf("限定文档检索混入了其他文档: %s", r.Chunk.DocumentID)
+		}
+	}
+
+	// 4.2 指定不存在的文档：应返回空（不报错）
+	empty, err := s.Search(ctx, query, 5, 0, "no-such-doc")
+	if err != nil {
+		t.Fatalf("Search(不存在文档) 失败: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("检索不存在文档应返回空, got %d", len(empty))
+	}
+
 	// 5. 列表
 	docs, err := s.ListDocuments(ctx)
 	if err != nil {

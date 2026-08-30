@@ -28,7 +28,6 @@ func main() {
 		log.Fatalf("加载配置失败: %v", err)
 	}
 
-	// 存储层：按配置选择内存实现或 PostgreSQL 实现
 	storeImpl, err := buildStore(cfg)
 	if err != nil {
 		log.Fatalf("初始化存储失败: %v", err)
@@ -73,16 +72,14 @@ func main() {
 	log.Println("服务已退出")
 }
 
-// buildStore 按配置构建存储实现：memory 用内存，postgres 用 PostgreSQL。
+// buildStore 按配置构建存储实现（PostgreSQL + pgvector）。
 func buildStore(cfg *config.Config) (store.Store, error) {
 	switch cfg.Database.Type {
-	case "memory":
-		return store.NewMemoryStore(), nil
 	case "postgres", "":
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return store.NewPostgresStore(ctx, cfg.Database.DSN(), cfg.Database.MaxConns)
 	default:
-		return nil, fmt.Errorf("未知的存储类型: %q（可选: memory / postgres）", cfg.Database.Type)
+		return nil, fmt.Errorf("未知的存储类型: %q（当前仅支持: postgres）", cfg.Database.Type)
 	}
 }

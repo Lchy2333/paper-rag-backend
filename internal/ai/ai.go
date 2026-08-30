@@ -12,20 +12,46 @@ import (
 )
 
 // Client 封装 Embedding 与 Chat 两个 AI 能力，底层为 OpenAI 兼容接口。
+// embedding 与 chat 各持一个独立客户端，可指向不同的 base_url。
 type Client struct {
-	openai *openai.Client
-	cfg    config.AIConfig
+	embedding *openai.Client
+	chat      *openai.Client
+	cfg       config.AIConfig
 }
 
 // NewClient 根据配置创建 AI 客户端。
+// embedding / chat 的 base_url、api_key 未单独设置时，回退到 ai.base_url / ai.api_key。
 func NewClient(cfg config.AIConfig) *Client {
-	ocfg := openai.DefaultConfig(cfg.APIKey)
-	ocfg.BaseURL = cfg.BaseURL
-	ocfg.HTTPClient = &http.Client{Timeout: time.Duration(cfg.TimeoutSec) * time.Second}
+	httpClient := &http.Client{Timeout: time.Duration(cfg.TimeoutSec) * time.Second}
 	return &Client{
-		openai: openai.NewClientWithConfig(ocfg),
-		cfg:    cfg,
+		embedding: newOpenAIClient(
+			firstNonEmpty(cfg.Embedding.APIKey, cfg.APIKey),
+			firstNonEmpty(cfg.Embedding.BaseURL, cfg.BaseURL),
+			httpClient,
+		),
+		chat: newOpenAIClient(
+			firstNonEmpty(cfg.Chat.APIKey, cfg.APIKey),
+			firstNonEmpty(cfg.Chat.BaseURL, cfg.BaseURL),
+			httpClient,
+		),
+		cfg: cfg,
 	}
+}
+
+func newOpenAIClient(apiKey, baseURL string, httpClient *http.Client) *openai.Client {
+	ocfg := openai.DefaultConfig(apiKey)
+	ocfg.BaseURL = baseURL
+	ocfg.HTTPClient = httpClient
+	return openai.NewClientWithConfig(ocfg)
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // Embed 将 texts 批量向量化，返回与输入顺序一致的向量列表。
@@ -49,7 +75,7 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 			Model: openai.EmbeddingModel(c.cfg.Embedding.Model),
 			Input: texts[i:end],
 		}
-		resp, err := c.openai.CreateEmbeddings(ctx, req)
+		resp, err := c.embedding.CreateEmbeddings(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("embedding 请求失败: %w", err)
 		}
@@ -66,7 +92,7 @@ func (c *Client) Chat(ctx context.Context, system, user string) (string, error) 
 		{Role: openai.ChatMessageRoleSystem, Content: system},
 		{Role: openai.ChatMessageRoleUser, Content: user},
 	}
-	resp, err := c.openai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := c.chat.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       c.cfg.Chat.Model,
 		Messages:    messages,
 		Temperature: c.cfg.Chat.Temperature,

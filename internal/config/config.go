@@ -40,12 +40,16 @@ type EmbeddingConfig struct {
 	Model     string `yaml:"model"`
 	Dimension int    `yaml:"dimension"`
 	BatchSize int    `yaml:"batch_size"`
+	BaseURL   string `yaml:"base_url"` // 可选，为空则回退到 ai.base_url
+	APIKey    string `yaml:"api_key"`  // 可选，为空则回退到 ai.api_key
 }
 
 type ChatConfig struct {
 	Model       string  `yaml:"model"`
 	Temperature float32 `yaml:"temperature"`
 	MaxTokens   int     `yaml:"max_tokens"`
+	BaseURL     string  `yaml:"base_url"` // 可选，为空则回退到 ai.base_url
+	APIKey      string  `yaml:"api_key"`  // 可选，为空则回退到 ai.api_key
 }
 
 type RAGConfig struct {
@@ -58,7 +62,7 @@ type RAGConfig struct {
 
 // DatabaseConfig 是 PostgreSQL 连接配置。
 type DatabaseConfig struct {
-	// Type 选择存储实现：memory（内存，重启丢失）或 postgres（本地数据库）
+	// Type 存储实现类型，当前仅支持 postgres（本地数据库）
 	Type     string `yaml:"type"`
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
@@ -168,11 +172,14 @@ func (c *Config) applyDefaults() {
 
 // Validate 检查关键配置是否合法。
 func (c *Config) Validate() error {
-	if c.AI.BaseURL == "" {
-		return fmt.Errorf("ai.base_url 不能为空，请参考 config/config.yaml 中的注释")
+	if c.AI.BaseURL == "" && c.AI.Embedding.BaseURL == "" {
+		return fmt.Errorf("ai.base_url（或 ai.embedding.base_url）不能为空，请参考 config/config.yaml 中的注释")
 	}
-	if c.AI.APIKey == "" {
-		return fmt.Errorf("ai.api_key 不能为空（可通过环境变量注入，如 ${OPENAI_API_KEY}）")
+	if c.AI.BaseURL == "" && c.AI.Chat.BaseURL == "" {
+		return fmt.Errorf("ai.base_url（或 ai.chat.base_url）不能为空，请参考 config/config.yaml 中的注释")
+	}
+	if c.AI.APIKey == "" && c.AI.Embedding.APIKey == "" && c.AI.Chat.APIKey == "" {
+		return fmt.Errorf("ai.api_key（或 ai.embedding.api_key / ai.chat.api_key）不能为空（可通过环境变量注入，如 ${OPENAI_API_KEY}）")
 	}
 	if c.AI.Embedding.Model == "" {
 		return fmt.Errorf("ai.embedding.model 不能为空")

@@ -149,20 +149,32 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 }
 
 // Search 用余弦相似度检索最相近的 topK 个片段，并按 threshold 过滤。
+// docIDs 可选：传入时仅在指定文档范围内检索（WHERE document_id = ANY）。
 // 通过 JOIN documents 带回文件名用于引用展示。
-func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, threshold float32) ([]SearchResult, error) {
+func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, threshold float32, docIDs ...string) ([]SearchResult, error) {
 	if topK <= 0 {
 		topK = 5
 	}
-	rows, err := s.pool.Query(ctx, `
+
+	sql := `
 		SELECT c.id, c.document_id, d.filename, c.page, c.idx, c.content, c.created_at,
 			   1 - (c.embedding <=> $1) AS similarity
 		FROM chunks c
-		JOIN documents d ON c.document_id = d.id
+		JOIN documents d ON c.document_id = d.id`
+	args := []any{pgvector.NewVector(query)}
+	limitPos := 2
+	if len(docIDs) > 0 {
+		sql += `
+		WHERE c.document_id = ANY($2)`
+		args = append(args, docIDs)
+		limitPos = 3
+	}
+	sql += fmt.Sprintf(`
 		ORDER BY c.embedding <=> $1
-		LIMIT $2`,
-		pgvector.NewVector(query), topK,
-	)
+		LIMIT $%d`, limitPos)
+	args = append(args, topK)
+
+	rows, err := s.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("向量检索失败: %w", err)
 	}
