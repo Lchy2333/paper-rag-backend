@@ -1,9 +1,11 @@
-package tests
+// Package integration 存放需要真实外部依赖（PostgreSQL）的集成测试。
+// 未设置 TEST_DATABASE_PASSWORD 时自动跳过。
+package integration
 
 import (
 	"context"
 	"os"
-	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,30 +17,29 @@ import (
 )
 
 // TestPostgresStore 是针对真实 PostgreSQL 的集成测试。
-// 运行前需设置数据库密码（其他项可用默认值）：
+// 数据库配置来自 config/config.test.yaml（默认连 paper_rag_test 测试库）。
+// 运行前需设置数据库密码：
 //
 //	$env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-//	go test ./tests -run TestPostgresStore -v
+//	go test ./tests/integration -run TestPostgresStore -v
 //
 // 未设置该环境变量时测试自动跳过（不影响 go test ./...）。
 func TestPostgresStore(t *testing.T) {
-	password := os.Getenv("TEST_DATABASE_PASSWORD")
-	if password == "" {
+	cfg, err := config.Load("../../config/config.test.yaml")
+	if err != nil {
+		t.Fatalf("加载测试配置失败: %v", err)
+	}
+
+	// 密码走环境变量（测试 yaml 里是 ${TEST_DATABASE_PASSWORD} 占位符）
+	if pw := os.Getenv("TEST_DATABASE_PASSWORD"); pw != "" {
+		cfg.Database.Password = pw
+	}
+	if cfg.Database.Password == "" || strings.HasPrefix(cfg.Database.Password, "${") {
 		t.Skip("未设置 TEST_DATABASE_PASSWORD，跳过 PostgreSQL 集成测试")
 	}
 
-	cfg := config.DatabaseConfig{
-		Type:     "postgres",
-		Host:     envOr("TEST_DATABASE_HOST", "localhost"),
-		Port:     envIntOr("TEST_DATABASE_PORT", 5432),
-		User:     envOr("TEST_DATABASE_USER", "postgres"),
-		Password: password,
-		DBName:   envOr("TEST_DATABASE_DB", "paper_rag"),
-		SSLMode:  "disable",
-	}
-
 	ctx := context.Background()
-	s, err := store.NewPostgresStore(ctx, cfg.DSN(), 5)
+	s, err := store.NewPostgresStore(ctx, cfg.Database.DSN(), cfg.Database.MaxConns)
 	if err != nil {
 		t.Fatalf("连接数据库失败: %v", err)
 	}
@@ -176,7 +177,7 @@ func TestPostgresStore(t *testing.T) {
 
 	// 5.1 NULL 字段兼容：手工插入 error/title 为 NULL 的行，列表不应报错
 	// （黑盒测试无法访问 store 内部的连接池，这里自建一条连接执行裸 SQL）
-	pool, err := pgxpool.New(ctx, cfg.DSN())
+	pool, err := pgxpool.New(ctx, cfg.Database.DSN())
 	if err != nil {
 		t.Fatalf("自建连接池失败: %v", err)
 	}
@@ -228,22 +229,6 @@ func testVector1024(pos int) []float32 {
 
 func cleanupPostgres(ctx context.Context, s store.Store, docID string) {
 	_ = s.DeleteDocument(ctx, docID)
-}
-
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
-func envIntOr(key string, def int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return def
 }
 
 func itoa(n int64) string {

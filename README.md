@@ -25,7 +25,7 @@ internal/ai/           # Embedding + Chat 客户端
 internal/store/        # 存储接口 + 内存/PostgreSQL 实现
 internal/service/      # 摄入流水线 / RAG 问答
 internal/httpapi/      # Gin 路由与处理器
-tests/                 # 全部测试用例（黑盒测试，package tests）
+tests/                 # 测试：unit/ 单元测试、integration/ 集成测试（连测试库）
 uploads/               # 上传的 PDF 落盘目录
 ```
 
@@ -232,18 +232,26 @@ curl -X POST http://localhost:8080/api/v1/ask \
 
 ## 测试
 
-测试用例集中放在 `tests/` 目录（黑盒测试，`package tests`）：
+测试用例按依赖分两类（黑盒测试，仅使用导出接口）：
+
+| 目录 | 内容 | 依赖 |
+|------|------|------|
+| `tests/unit/` | 单元测试（分块/配置/余弦/PDF/HTTP 层） | 无 |
+| `tests/integration/` | PostgreSQL 集成测试 | 真实数据库 |
 
 ```bash
-go test ./...            # 单元测试（不含数据库集成测试）
+go test ./...        # 跑全部（集成测试未设密码自动跳过）
+go test ./tests/unit # 只跑单元测试
 ```
 
-PostgreSQL 集成测试需提供真实数据库密码（未设置则自动跳过）：
+PostgreSQL 集成测试连**独立的测试库** `paper_rag_test`（配置见 `config/config.test.yaml`），需先建库建表 + 设置密码：
 
 ```powershell
 $env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-go test ./tests -run TestPostgresStore -v
+go test ./tests/integration -run TestPostgresStore -v
 ```
+
+> 测试库初始化：在 Navicat 新建数据库 `paper_rag_test`，然后执行 `db/init.sql`（已含最新表结构，无需 ALTER）。
 
 ## 存储层
 

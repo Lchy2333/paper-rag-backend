@@ -97,10 +97,14 @@ func inferTitle(r *pdf.Reader) string {
 }
 
 // normalizeText 清洗解析出来的原始文本：合并行尾换行、去重多余空白。
+// 同时剥离 \x00 空字节与非法 UTF-8 序列——部分字形（如上标 ²）会被解析库
+// 映射成空字节，而 PostgreSQL 不接受 \x00，不清理会导致入库报错。
 func normalizeText(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\r", "\n")
 	s = strings.ReplaceAll(s, "\u00a0", " ")
+	s = strings.ReplaceAll(s, "\x00", "")
+	s = strings.ToValidUTF8(s, "")
 	var sb strings.Builder
 	prevBlank := false
 	for _, line := range strings.Split(s, "\n") {
