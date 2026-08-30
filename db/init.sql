@@ -6,8 +6,11 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 2. 文档表：每篇论文一行
+-- user_id: 文档归属者。当前单用户模式固定为 'local'，为将来多用户隔离铺路；
+--          接入鉴权后应由登录态动态赋值。
 CREATE TABLE IF NOT EXISTS documents (
     id           VARCHAR(32) PRIMARY KEY,
+    user_id      VARCHAR(64) NOT NULL DEFAULT 'local',
     filename     VARCHAR(255) NOT NULL,
     title        VARCHAR(255),
     page_count   INTEGER NOT NULL DEFAULT 0,

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -53,8 +54,8 @@ func (s *PostgresStore) Close() {
 
 func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO documents (id, filename, title, page_count, size_bytes, chunk_count, status, error, content_hash, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO documents (id, user_id, filename, title, page_count, size_bytes, chunk_count, status, error, content_hash, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (id) DO UPDATE SET
 			filename = EXCLUDED.filename,
 			title = EXCLUDED.title,
@@ -63,7 +64,7 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 			chunk_count = EXCLUDED.chunk_count,
 			status = EXCLUDED.status,
 			error = EXCLUDED.error`,
-		doc.ID, doc.Filename, doc.Title, doc.PageCount, doc.SizeBytes,
+		doc.ID, doc.UserID, doc.Filename, doc.Title, doc.PageCount, doc.SizeBytes,
 		doc.ChunkCount, doc.Status, doc.Error, doc.ContentHash, doc.CreatedAt,
 	)
 	if err != nil {
@@ -75,9 +76,9 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
 		FROM documents WHERE id = $1`, id,
-	).Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
+	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
 		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -90,7 +91,7 @@ func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Docu
 
 func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
 		FROM documents ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("查询文档列表失败: %w", err)
@@ -100,7 +101,7 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 	docs := make([]model.Document, 0)
 	for rows.Next() {
 		var d model.Document
-		if err := rows.Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
+		if err := rows.Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
 			&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt); err != nil {
 			return nil, fmt.Errorf("读取文档列表失败: %w", err)
 		}
@@ -113,9 +114,9 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
 		FROM documents WHERE content_hash = $1`, hash,
-	).Scan(&d.ID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
+	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
 		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -166,9 +167,9 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 }
 
 // Search 用余弦相似度检索最相近的 topK 个片段，并按 threshold 过滤。
-// docIDs 可选：传入时仅在指定文档范围内检索（WHERE document_id = ANY）。
+// opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
 // 通过 JOIN documents 带回文件名用于引用展示。
-func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, threshold float32, docIDs ...string) ([]SearchResult, error) {
+func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error) {
 	if topK <= 0 {
 		topK = 5
 	}
@@ -180,11 +181,19 @@ func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, t
 		JOIN documents d ON c.document_id = d.id`
 	args := []any{pgvector.NewVector(query)}
 	limitPos := 2
-	if len(docIDs) > 0 {
-		sql += `
-		WHERE c.document_id = ANY($2)`
-		args = append(args, docIDs)
-		limitPos = 3
+	conds := make([]string, 0, 2)
+	if len(opts.DocIDs) > 0 {
+		conds = append(conds, fmt.Sprintf("c.document_id = ANY($%d)", limitPos))
+		args = append(args, opts.DocIDs)
+		limitPos++
+	}
+	if opts.UserID != "" {
+		conds = append(conds, fmt.Sprintf("d.user_id = $%d", limitPos))
+		args = append(args, opts.UserID)
+		limitPos++
+	}
+	if len(conds) > 0 {
+		sql += " WHERE " + strings.Join(conds, " AND ")
 	}
 	sql += fmt.Sprintf(`
 		ORDER BY c.embedding <=> $1

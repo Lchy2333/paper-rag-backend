@@ -38,6 +38,10 @@ func NewIngestService(c *ai.Client, s store.Store, cfg config.ServerConfig, rag 
 	}
 }
 
+// defaultOwnerUserID 是当前单用户模式的固定文档归属者。
+// 将来接入多用户后，应由登录态/鉴权中间件动态赋值。
+const defaultOwnerUserID = "local"
+
 // ErrUnsupportedType 表示上传的文件类型不受支持。
 var ErrUnsupportedType = errors.New("不支持的文件类型，仅支持 PDF")
 
@@ -57,6 +61,7 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 
 	doc := &model.Document{
 		ID:        newID(),
+		UserID:    defaultOwnerUserID,
 		Filename:  filename,
 		Status:    "pending",
 		SizeBytes: size,

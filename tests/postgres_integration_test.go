@@ -53,6 +53,7 @@ func TestPostgresStore(t *testing.T) {
 	// 1. 保存文档
 	doc := &model.Document{
 		ID:          docID,
+		UserID:      "local",
 		Filename:    "integration-test.pdf",
 		Title:       "集成测试文档",
 		PageCount:   3,
@@ -76,6 +77,9 @@ func TestPostgresStore(t *testing.T) {
 	}
 	if got.ContentHash != doc.ContentHash {
 		t.Fatalf("GetDocument 未带回 content_hash: %q", got.ContentHash)
+	}
+	if got.UserID != "local" {
+		t.Fatalf("GetDocument 未带回 user_id: %q", got.UserID)
 	}
 
 	// 2.1 按内容哈希查找（上传去重）：命中 / 未命中
@@ -102,7 +106,7 @@ func TestPostgresStore(t *testing.T) {
 	query := make([]float32, 1024)
 	query[0] = 0.9
 	query[1] = 0.1
-	results, err := s.Search(ctx, query, 5, 0.5)
+	results, err := s.Search(ctx, query, 5, 0.5, store.SearchOptions{})
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -117,7 +121,7 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	// 4.1 指定文档检索：限定在 docID 范围内，结果应全部来自该文档
-	filtered, err := s.Search(ctx, query, 5, 0.5, docID)
+	filtered, err := s.Search(ctx, query, 5, 0.5, store.SearchOptions{DocIDs: []string{docID}})
 	if err != nil {
 		t.Fatalf("Search(限定文档) 失败: %v", err)
 	}
@@ -131,12 +135,28 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	// 4.2 指定不存在的文档：应返回空（不报错）
-	empty, err := s.Search(ctx, query, 5, 0, "no-such-doc")
+	empty, err := s.Search(ctx, query, 5, 0, store.SearchOptions{DocIDs: []string{"no-such-doc"}})
 	if err != nil {
 		t.Fatalf("Search(不存在文档) 失败: %v", err)
 	}
 	if len(empty) != 0 {
 		t.Fatalf("检索不存在文档应返回空, got %d", len(empty))
+	}
+
+	// 4.3 用户隔离：限定归属用户检索，本人命中 / 他人应为空
+	mine, err := s.Search(ctx, query, 5, 0.5, store.SearchOptions{UserID: "local"})
+	if err != nil {
+		t.Fatalf("Search(本人 user) 失败: %v", err)
+	}
+	if len(mine) == 0 {
+		t.Fatalf("检索本人 user 的文档应命中")
+	}
+	others, err := s.Search(ctx, query, 5, 0.5, store.SearchOptions{UserID: "another-user"})
+	if err != nil {
+		t.Fatalf("Search(他人 user) 失败: %v", err)
+	}
+	if len(others) != 0 {
+		t.Fatalf("检索他人 user 应返回空, got %d", len(others))
 	}
 
 	// 5. 列表
@@ -189,7 +209,7 @@ func TestPostgresStore(t *testing.T) {
 	if got2 != nil {
 		t.Fatalf("删除后文档仍存在")
 	}
-	after, _ := s.Search(ctx, testVector1024(0), 5, 0)
+	after, _ := s.Search(ctx, testVector1024(0), 5, 0, store.SearchOptions{})
 	for _, r := range after {
 		if r.Chunk.DocumentID == docID {
 			t.Fatalf("删除文档后 chunks 未级联清理: %s", r.Chunk.ID)
