@@ -39,12 +39,19 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 		return nil, err
 	}
 
-	// 2. 向量检索
+	// 2. 向量检索（限定归属用户；未指定文档则全库检索）
 	topK := s.cfg.TopK
 	if q.TopK > 0 {
 		topK = q.TopK
 	}
-	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold, q.DocumentIDs...)
+	userID := q.UserID
+	if userID == "" {
+		userID = defaultOwnerUserID
+	}
+	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold, store.SearchOptions{
+		DocIDs: q.DocumentIDs,
+		UserID: userID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}

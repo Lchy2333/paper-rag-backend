@@ -5,6 +5,7 @@ import "time"
 // Document 表示一篇上传并解析后的文档。
 type Document struct {
 	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"` // 归属者；单用户模式固定为 "local"，将来多用户时由登录态赋值
 	Filename    string    `json:"filename"`
 	Title       string    `json:"title"`
 	PageCount   int       `json:"page_count"`
@@ -31,8 +32,9 @@ type Chunk struct {
 // Question 是用户提问请求。
 type Question struct {
 	Query       string   `json:"query" binding:"required"`
-	TopK        int      `json:"top_k"`               // 可选，覆盖默认 top_k
+	TopK        int      `json:"top_k"`                  // 可选，覆盖默认 top_k
 	DocumentIDs []string `json:"document_ids,omitempty"` // 可选，限定检索范围；为空则全库检索
+	UserID      string   `json:"user_id,omitempty"`      // 归属者；为空时服务层默认 "local"
 }
 
 // UploadResult 是多文件上传时单个文件的处理结果。

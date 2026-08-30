@@ -17,6 +17,12 @@ type SearchResult struct {
 	Score float32
 }
 
+// SearchOptions 是检索的可选过滤条件。
+type SearchOptions struct {
+	DocIDs []string // 限定文档范围，为空不限
+	UserID string   // 限定归属用户，为空不限
+}
+
 // Store 统一存储接口：文档元数据 + 向量。
 type Store interface {
 	// ---- 文档元数据 ----
@@ -31,8 +37,8 @@ type Store interface {
 	// ---- 向量 ----
 	AddChunks(ctx context.Context, chunks []model.Chunk) error
 	// Search 返回与 query 最相似的 topK 个片段（按余弦相似度降序）。
-	// docIDs 可选：传入时仅在指定文档范围内检索；不传则全库检索。
-	Search(ctx context.Context, query []float32, topK int, threshold float32, docIDs ...string) ([]SearchResult, error)
+	// opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
+	Search(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error)
 }
 
 // CosineSimilarity 计算两个向量的余弦相似度。
