@@ -8,11 +8,13 @@ server:
 
 ai:
   provider: "openai-compatible"
-  # OpenAI 兼容接口的 base_url，例如：
+  # OpenAI 兼容接口的默认 base_url，例如：
   #   OpenAI:      https://api.openai.com/v1
   #   DeepSeek:    https://api.deepseek.com/v1
-  #   Qwen/通义:   https://dashscope.aliyuncs.com/compatible-mode/v1
+  #   火山方舟标准: https://ark.cn-beijing.volces.com/api/v3
+  #   火山方舟Plan: https://ark.cn-beijing.volces.com/api/plan/v3/
   #   Ollama 本地: http://localhost:11434/v1
+  # 注意：embedding 和 chat 可分别在各自节里覆盖 base_url（见下）
   base_url: "http://localhost:11434/v1"
   # 支持 ${ENV_VAR} 语法引用环境变量，例如 ${OPENAI_API_KEY}。
   # Ollama 本地不需要 key，填任意值即可。
@@ -20,6 +22,11 @@ ai:
   timeout_sec: 300
 
   embedding:
+    # 可选：单独指定向量化服务的 base_url / api_key，为空则回退到 ai.base_url / ai.api_key。
+    # 例如 embedding 发到另一个本地服务：
+    #   base_url: "http://192.168.1.10:11434/v1"
+    base_url: "http://localhost:11434/v1"
+    api_key: "ollama"
     # 使用 Ollama 本地多语言向量模型 bge-m3，中文/英文混合语义强，维度 1024
     # （必须与数据库 VECTOR(n) 一致）
     model: "bge-m3"
@@ -27,7 +34,13 @@ ai:
     batch_size: 16
 
   chat:
-    model: "qwen3:8b"
+    # 可选：单独指定对话服务的 base_url / api_key，为空则回退到 ai.base_url / ai.api_key。
+    # 例：走火山方舟（Agent Plan 套餐时用 /api/plan/v3/，标准 API 用 /api/v3）：
+    #   base_url: "https://ark.cn-beijing.volces.com/api/plan/v3/"
+    #   api_key: "${ARK_API_KEY}"
+    base_url: "https://ark.cn-beijing.volces.com/api/plan/v3/"
+    api_key: "${ARK_API_KEY}"
+    model: "deepseek-v4-flash"
     temperature: 0.2
     max_tokens: 2048
 
@@ -40,7 +53,7 @@ rag:
   no_context_reply: "抱歉，在已上传的文档中没有找到与您问题相关的内容。"
 
 database:
-  # 存储实现：postgres（本地数据库，推荐）或 memory（内存，重启丢失）
+  # 存储实现：仅支持 postgres（本地数据库，pgvector 向量检索）
   type: "postgres"
   host: "localhost"
   port: 5432

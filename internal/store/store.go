@@ -1,6 +1,6 @@
-// Package store 定义向量/文档存储接口，并提供基于内存的实现。
+// Package store 定义向量/文档存储接口，并基于 PostgreSQL + pgvector 实现。
 //
-// 后续接入真实数据库（如 pgvector、Qdrant、Milvus）时，只需实现 Store 接口
+// 后续若接入其他向量数据库（如 Qdrant、Milvus），只需实现 Store 接口
 // 并在 service 初始化处替换为对应实现，无需改动上层业务代码。
 package store
 
@@ -29,7 +29,8 @@ type Store interface {
 	// ---- 向量 ----
 	AddChunks(ctx context.Context, chunks []model.Chunk) error
 	// Search 返回与 query 最相似的 topK 个片段（按余弦相似度降序）。
-	Search(ctx context.Context, query []float32, topK int, threshold float32) ([]SearchResult, error)
+	// docIDs 可选：传入时仅在指定文档范围内检索；不传则全库检索。
+	Search(ctx context.Context, query []float32, topK int, threshold float32, docIDs ...string) ([]SearchResult, error)
 }
 
 // CosineSimilarity 计算两个向量的余弦相似度。

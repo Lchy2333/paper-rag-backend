@@ -29,8 +29,9 @@ type Chunk struct {
 
 // Question 是用户提问请求。
 type Question struct {
-	Query string `json:"query" binding:"required"`
-	TopK  int    `json:"top_k"` // 可选，覆盖默认 top_k
+	Query       string   `json:"query" binding:"required"`
+	TopK        int      `json:"top_k"`               // 可选，覆盖默认 top_k
+	DocumentIDs []string `json:"document_ids,omitempty"` // 可选，限定检索范围；为空则全库检索
 }
 
 // Answer 是 RAG 的回答结果。

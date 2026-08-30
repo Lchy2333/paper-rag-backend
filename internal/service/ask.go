@@ -44,7 +44,7 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 	if q.TopK > 0 {
 		topK = q.TopK
 	}
-	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold)
+	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold, q.DocumentIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}

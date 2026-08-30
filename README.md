@@ -51,15 +51,19 @@ cp config/config.example.yaml config/config.yaml
 
 ```yaml
 ai:
-  base_url: "http://localhost:11434/v1"   # Ollama；换云端服务则改成对应地址
+  base_url: "http://localhost:11434/v1"   # 默认 Ollama；embedding/chat 可各自覆盖
   api_key: "ollama"                       # Ollama 不需要 key，填任意值
   embedding:
+    base_url: ""                          # 可选：embedding 单独用别的地址，留空则用 ai.base_url
+    api_key: ""                           # 可选：留空则用 ai.api_key
     model: "bge-m3"
     dimension: 1024                       # ⚠️ 必须与数据库 VECTOR(n) 一致
   chat:
+    base_url: ""                          # 可选：chat 单独用别的地址（如 OpenAI），留空则用 ai.base_url
+    api_key: ""                           # 可选：chat 单独用别的 key（如 ${OPENAI_API_KEY}），留空则用 ai.api_key
     model: "qwen3:8b"
 database:
-  type: "postgres"                        # postgres | memory
+  type: "postgres"                        # 仅支持 postgres
   user: "postgres"
   password: "${POSTGRES_PASSWORD}"        # 本地数据库密码
 ```
@@ -82,8 +86,6 @@ psql -U postgres -d paper_rag -f db/init.sql
 ```
 
 或直接在 Navicat 中粘贴执行 `db/init.sql` 内容。
-
-`database.type` 设为 `memory` 可跳过数据库（数据仅存内存，重启丢失）。
 
 ### 4. 启动服务
 
@@ -146,11 +148,20 @@ curl -X POST http://localhost:8080/api/v1/ask \
 ```json
 {
     "query": "问题内容",
-    "top_k": 5
+    "top_k": 5,
+    "document_ids": ["doc-id-1", "doc-id-2"]
 }
 ```
 
-`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）。
+`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）。
+
+**指定文档对比提问**示例：先 `GET /api/v1/documents` 拿到两篇论文的 id，再限定范围提问：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query": "对比这两篇论文的核心观点", "document_ids": ["<doc-a-id>", "<doc-b-id>"]}'
+```
 
 ## 测试
 
@@ -167,16 +178,15 @@ $env:TEST_DATABASE_PASSWORD = "你的数据库密码"
 go test ./tests -run TestPostgresStore -v
 ```
 
-## 存储层切换
+## 存储层
 
-`internal/store` 定义了统一 `Store` 接口，当前有两个实现：
+`internal/store` 定义了统一 `Store` 接口，当前只有一个实现：
 
 | 实现 | 配置 `database.type` | 特点 |
 |------|---------------------|------|
 | `PostgresStore` | `postgres` | 生产推荐，pgvector 向量检索，数据持久化 |
-| `MemoryStore` | `memory` | 开发/测试用，重启丢失 |
 
-切换只改配置，业务代码零改动。
+接口抽象保证后续若接新数据库（Qdrant、Milvus 等）只需新增实现，业务代码零改动。
 
 ## 设计要点
 
