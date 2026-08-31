@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/ledongthuc/pdf"
@@ -35,14 +36,53 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 	}
 
 	for i := 1; i <= pageCount; i++ {
-		p := reader.Page(i)
-		text, err := p.GetPlainText(nil)
+		text, err := pageText(reader.Page(i))
 		if err != nil {
 			return nil, fmt.Errorf("解析第 %d 页失败: %w", i, err)
 		}
 		doc.Pages = append(doc.Pages, normalizeText(text))
 	}
 	return doc, nil
+}
+
+// pageText 用库的 Content()（带坐标的逐字文本）按阅读顺序重建页面文本。
+//
+// 为什么不用 GetPlainText：它处理 PDF 换行运算符 T* 时，会把换行字节 0x0A
+// 交给当前字体的 ToUnicode 解码器。而 reportlab 嵌入的 SimHei 子集字体恰好把
+// 0x0A 映射成真实汉字（常规子集是"页"，粗体子集是"端/磺/境/稀/书"等），于是
+// 每行末尾、段落折行处都被混入一个假字符（见 AGENTS.md 的踩坑记录）。
+// Content() 内部正确跟踪文本矩阵（Tm/Td/T*），返回带 X/Y 坐标的逐字文本，
+// 这里再按 (Y↓, X↑) 排序即可还原版面阅读顺序，且不产生任何假字符。
+func pageText(p pdf.Page) (text string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			text = ""
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
+	content := p.Content()
+	sort.Slice(content.Text, func(i, j int) bool {
+		if content.Text[i].Y > content.Text[j].Y {
+			return true
+		}
+		if content.Text[i].Y < content.Text[j].Y {
+			return false
+		}
+		return content.Text[i].X < content.Text[j].X
+	})
+
+	const lineTol = 2.0 // 同一视觉行允许的 Y 波动（pt），用于区分上下两行
+	var sb strings.Builder
+	lastY := 0.0
+	for i, t := range content.Text {
+		if i > 0 && t.Y < lastY-lineTol {
+			sb.WriteByte('\n')
+		}
+		lastY = t.Y
+		sb.WriteString(t.S)
+	}
+	return sb.String(), nil
 }
 
 // trimTrailingJunk 返回 PDF 有效部分的结束位置。
@@ -76,13 +116,14 @@ func trimTrailingJunk(r io.ReaderAt, size int64) (int64, error) {
 
 // inferTitle 从元数据或第一页前几行猜测文档标题。
 func inferTitle(r *pdf.Reader) string {
-	if t := r.Trailer().Key("Root").Key("Info").Key("Title"); !t.IsNull() {
+	// PDF 规范里 Info 在 trailer 下（trailer /Info /Title），不是 Root 下的 Info。
+	if t := r.Trailer().Key("Info").Key("Title"); !t.IsNull() {
 		if s := t.Text(); strings.TrimSpace(s) != "" {
 			return strings.TrimSpace(s)
 		}
 	}
 	if r.NumPage() >= 1 {
-		text, err := r.Page(1).GetPlainText(nil)
+		text, err := pageText(r.Page(1))
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(normalizeText(text)), "\n")
 			for _, l := range lines {

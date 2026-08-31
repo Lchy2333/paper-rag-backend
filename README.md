@@ -26,7 +26,9 @@ internal/store/        # 存储接口 + 内存/PostgreSQL 实现
 internal/service/      # 摄入流水线 / RAG 问答
 internal/httpapi/      # Gin 路由与处理器
 tests/                 # 测试：unit/ 单元测试、integration/ 集成测试（连测试库）
+goldentest/            # 黄金测试集：语料(pdf/)、事实库、问题集、评测脚本
 uploads/               # 上传的 PDF 落盘目录
+temp.py                # 黄金语料生成器：生成 PDF 与 facts.json
 ```
 
 ## 快速开始
@@ -230,6 +232,40 @@ curl -X POST http://localhost:8080/api/v1/ask \
   -d '{"query": "对比这两篇论文的核心观点", "document_ids": ["<doc-a-id>", "<doc-b-id>"]}'
 ```
 
+## 黄金测试集（goldentest/）
+
+用于定量评估"检索是否正确命中包含答案的片段"，替代"肉眼感觉"式的验收。由 `temp.py` 自动生成语料 + 事实库，人工补充问题集：
+
+```
+goldentest/
+├── pdf/                  # 原始 PDF（5 篇多学科合成论文，语料）
+├── parsed/               # （预留）解析后的规范文本，供人工审核
+├── reports/              # 评测报告输出
+├── facts.json            # 事实库：50 条事实（F01-F30 原子 + D01-D20 干扰）+ 位置锚点（论文/章节/行号）
+├── golden_queries.json   # 问题集：人工标注的问题 + target_fact_ids（期望命中的事实）
+└── eval/main.go          # 评测脚本
+```
+
+**两类标注文件的分工**：`facts.json` 是"语料里有哪些可验证的事实、在哪"，自动生成；`golden_queries.json` 是"想考什么"，人工写问题并通过 `target_fact_ids` 引用事实。期望答案/论文/章节**只在 facts.json 存一份**，评测脚本据此解析，避免两份数据不一致。
+
+**重新生成语料与事实库**：
+
+```bash
+python temp.py        # 重新生成 goldentest/pdf/*.pdf 与 goldentest/facts.json
+```
+
+> 说明：`temp.py` 会额外生成 `01_原子事实.pdf`、`07_事实映射表.pdf` 两个辅助参考文件（非检索语料，可删除）。当前 `goldentest/pdf/` 只保留 5 篇论文 PDF（已按标题命名），生成后如需保持一致请只保留 `0X_论文X.pdf`。
+
+**跑评测（离线一致性校验）**：
+
+```bash
+go run ./goldentest/eval
+```
+
+校验每条问题的目标事实是否存在于 `facts.json`、能否在语料解析文本中逐字命中，并自动解析出期望答案与位置；任意标注损坏则以非零码退出（可接 CI）。报告输出到 `goldentest/reports/`。
+
+> 下一阶段：把 5 篇入库到测试库后，可扩展 `-retrieval` 开关做"向量检索是否命中目标 chunk"的 Recall@K 评测（脚本内已留 TODO）。
+
 ## 测试
 
 测试用例按依赖分两类（黑盒测试，仅使用导出接口）：
@@ -238,6 +274,8 @@ curl -X POST http://localhost:8080/api/v1/ask \
 |------|------|------|
 | `tests/unit/` | 单元测试（分块/配置/余弦/PDF/HTTP 层） | 无 |
 | `tests/integration/` | PostgreSQL 集成测试 | 真实数据库 |
+
+`tests/unit/` 里的 `TestParseRealPDFs*` 会解析 `goldentest/pdf/` 下的真实 PDF，并用 `goldentest/facts.json` 校验 50 条事实能逐字命中（黄金集未提交时自动跳过）。
 
 ```bash
 go test ./...        # 跑全部（集成测试未设密码自动跳过）

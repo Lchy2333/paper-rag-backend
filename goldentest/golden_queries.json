@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "description": "黄金测试集：人工标注的评测问题。expected_answer / expected_paper / expected_section 由评测脚本根据 target_fact_ids 从 facts.json 自动解析，不在此重复维护（避免两份数据不一致）。type: atomic=原子事实（应有唯一答案）；distractor=干扰事实（模型不应把它当真实答案）。",
+  "queries": [
+    {
+      "id": "Q01",
+      "question": "澄江实验站近地表土壤含水率的日内峰值通常出现在什么时间？",
+      "target_fact_ids": ["F01"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q02",
+      "question": "连续阴雨 7 天后，青岚湖浮游植物群落中硅藻的相对丰度发生了什么变化？",
+      "target_fact_ids": ["F03"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q03",
+      "question": "在 25 摄氏度和 60% 相对湿度的条件下，某类生物基薄膜的水蒸气透过率是多少？",
+      "target_fact_ids": ["F07"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q04",
+      "question": "河口沉积物培养实验中，加入少量生物炭后铵态氮的平均吸附量提高了多少？",
+      "target_fact_ids": ["F11"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q05",
+      "question": "海拔 1200 米的温室实验中，夜间温度每降低 1 摄氏度，番茄幼苗平均叶面积会怎样变化？",
+      "target_fact_ids": ["F25"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "QD01",
+      "question": "实验所用的玻璃培养皿直径是多少毫米？",
+      "target_fact_ids": ["D01"],
+      "type": "distractor",
+      "note": "干扰事实：语料中存在，但不属于任何论文的真实结论，评测它是否被误当答案"
+    }
+  ]
+}
