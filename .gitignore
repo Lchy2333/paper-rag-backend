@@ -10,6 +10,13 @@ vendor/
 # 上传文件
 uploads/
 
+# 黄金测试集运行时产物（可重新生成）
+goldentest/reports/
+
+# Python 中间产物
+__pycache__/
+*.pyc
+
 # 配置（含密钥，不入库）
 config/config.yaml
 .env
@@ -18,4 +25,6 @@ config/config.yaml
 # IDE
 .idea/
 .vscode/
-/避坑.txt
+/AGENTS.md
+/architecture.md
+/config/config.test.yaml
