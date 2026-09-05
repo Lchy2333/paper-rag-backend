@@ -119,12 +119,13 @@ func TestParseRealPDFs_FactsMatch(t *testing.T) {
 			miss = append(miss, fid)
 		}
 	}
+	// 干扰项按设计"不在"语料中（防幻觉测试项）：出现在语料里反而说明设计错误。
 	for fid, fact := range facts.Distractors {
-		if !strings.Contains(corpus, stripWS(fact)) {
-			miss = append(miss, fid)
+		if strings.Contains(corpus, stripWS(fact)) {
+			miss = append(miss, fid+"（干扰项不应在语料中）")
 		}
 	}
 	if len(miss) > 0 {
-		t.Errorf("有 %d 条事实无法在解析文本中精确匹配: %v", len(miss), miss)
+		t.Errorf("有 %d 条事实匹配异常: %v", len(miss), miss)
 	}
 }

@@ -234,45 +234,37 @@ curl -X POST http://localhost:8080/api/v1/ask \
 
 ## 黄金测试集（goldentest/）
 
-用于定量评估"检索是否正确命中包含答案的片段"，替代"肉眼感觉"式的验收。由 `temp.py` 自动生成语料 + 事实库，人工补充问题集：
+用于定量评估 RAG 的**检索质量（v2）**与**端到端回答质量（v3）**，替代"肉眼感觉"式验收。语料为 5 篇合成论文（**PDF 固定，不再重新生成**），事实库 + 问题集人工维护：
 
 ```
 goldentest/
-├── pdf/                  # 原始 PDF（5 篇多学科合成论文，语料）
-├── parsed/               # （预留）解析后的规范文本，供人工审核
-├── reports/              # 评测报告输出
-├── facts.json            # 事实库：50 条事实（F01-F30 原子 + D01-D20 干扰）+ 位置锚点（论文/章节/行号）
-├── golden_queries.json   # 问题集：人工标注的问题 + target_fact_ids（期望命中的事实）
+├── pdf/                  # 语料：5 篇合成论文 PDF（固定）
+├── parsed/               # （预留）解析后的规范文本
+├── reports/              # 评测报告（eval_<时间戳>.json）
+├── facts.json            # 事实库：atomic 30 条（与 PDF 逐字一致）+ distractors 20 条（不在语料）
+├── golden_queries.json   # 问题集：30 条原子问题（带前提）+ 20 条干扰问题
 └── eval/main.go          # 评测脚本
 ```
 
-**两类标注文件的分工**：`facts.json` 是"语料里有哪些可验证的事实、在哪"，自动生成；`golden_queries.json` 是"想考什么"，人工写问题并通过 `target_fact_ids` 引用事实。期望答案/论文/章节**只在 facts.json 存一份**，评测脚本据此解析，避免两份数据不一致。
+**两类标注的分工**：
+- `facts.json` → `atomic`：原子事实，**逐字与 PDF 一致**（v1/v2 靠内容匹配定位，是"语义锚点"）；`distractors`：干扰项，**语料中不存在的假说法**（专测模型会不会编造）。
+- `golden_queries.json`：原子问题带"前提/语境"（如"在澄江实验站的土壤水文学研究中…"），答案即对应事实；干扰问题期望模型**拒答/不编造**。
 
-**重新生成语料与事实库**：
-
-```bash
-python temp.py        # 重新生成 goldentest/pdf/*.pdf 与 goldentest/facts.json
-```
-
-> 说明：`temp.py` 会额外生成 `01_原子事实.pdf`、`07_事实映射表.pdf` 两个辅助参考文件（非检索语料，可删除）。当前 `goldentest/pdf/` 只保留 5 篇论文 PDF（已按标题命名），生成后如需保持一致请只保留 `0X_论文X.pdf`。
-
-**跑评测（v1：离线一致性校验）**：
-
-```bash
-go run ./goldentest/eval
-```
-
-校验每条问题的目标事实是否存在于 `facts.json`、能否在语料解析文本中逐字命中，并自动解析出期望答案与位置；任意标注损坏则以非零码退出（可接 CI）。报告输出到 `goldentest/reports/`。
-
-**跑评测（v2：检索 Recall@K，需要语料入库 + Ollama）**：
+**跑评测**（密码走环境变量）：
 
 ```powershell
 $env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-go run ./goldentest/eval -ingest -retrieval   # 重灌语料 + v1 + v2
-go run ./goldentest/eval -retrieval            # 库中已有语料时只跑 v2
+go run ./goldentest/eval                          # v1 一致性校验（无需 DB/Ollama）
+go run ./goldentest/eval -retrieval               # + v2 检索 Recall@K/MRR
+go run ./goldentest/eval -answer                  # + v3 问答（端到端 + 防幻觉，需 chat 模型）
+go run ./goldentest/eval -ingest -retrieval -answer  # 重灌语料 + 全部
 ```
 
-v2 用 bge-m3 编码问题 → 在库中向量检索 topK → 判断"包含目标事实的 chunk"是否在结果内 → 输出 `Recall@1/3/5/10` 与 `MRR@10`（distractor 问题单列，不计入指标）。`-ingest` 会先删除与 `goldentest/pdf/` 同名的旧文档再重灌（修复前摄入的脏数据也由此清掉）。
+**报告为 JSON**（`reports/eval_<时间戳>.json`），含 `ingest / v1 / v2 / v3` 四段 + 逐条问题结果；控制台只打印关键指标摘要。
+
+- **v1 一致性校验**：原子事实必须逐字在语料；干扰项必须**不在**语料（缺席校验）。任意标注损坏以非零码退出（可接 CI）。
+- **v2 检索评测**：问题 embedding → 库内向量检索 topK → 判断含目标事实的 chunk 是否命中 → `Recall@1/3/5/10` + `MRR`；干扰项跳过（不在语料）。`-ingest` 会先删除同名旧文档再重灌。
+- **v3 问答评测**：走真实 `/ask` 链路（检索 + LLM 生成），LLM 裁判判分——原子问题 `correct/partial/wrong`，干扰问题 `ok/hallucinated`（是否编造）；并据回答的 citations 反推检索命中，输出**端到端诊断矩阵**（定位问题在检索还是生成）。
 
 ## 测试
 
