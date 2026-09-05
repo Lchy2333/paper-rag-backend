@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "黄金测试集：人工标注的评测问题。expected_answer / expected_paper / expected_section 由评测脚本根据 target_fact_ids 从 facts.json 自动解析，不在此重复维护（避免两份数据不一致）。type: atomic=原子事实（应有唯一答案）；distractor=干扰事实（模型不应把它当真实答案）。",
+  "description": "黄金测试集：人工标注的评测问题，与 facts.json 的 50 条事实一一对应（30 条原子 Q01-Q30 + 20 条干扰 QD01-QD20）。expected_answer / expected_paper / expected_section 由评测脚本根据 target_fact_ids 从 facts.json 自动解析，不在此重复维护。type: atomic=原子事实（应有唯一答案）；distractor=干扰事实（细节虽出现在语料中，但不属于任何论文的真实结论，评测模型是否误当答案）。",
   "queries": [
     {
       "id": "Q01",
@@ -11,29 +11,204 @@
     },
     {
       "id": "Q02",
-      "question": "连续阴雨 7 天后，青岚湖浮游植物群落中硅藻的相对丰度发生了什么变化？",
-      "target_fact_ids": ["F03"],
+      "question": "掺入3%木质素磺酸盐的再生混凝土试件，其早期抗裂指数相比未掺组提高了多少？",
+      "target_fact_ids": ["F02"],
       "type": "atomic",
       "note": ""
     },
     {
       "id": "Q03",
-      "question": "在 25 摄氏度和 60% 相对湿度的条件下，某类生物基薄膜的水蒸气透过率是多少？",
-      "target_fact_ids": ["F07"],
+      "question": "连续阴雨7天后，青岚湖浮游植物群落中硅藻的相对丰度发生了什么变化？",
+      "target_fact_ids": ["F03"],
       "type": "atomic",
       "note": ""
     },
     {
       "id": "Q04",
+      "question": "相比规则方格网，采用六边形网格划分城市街区时行人平均绕行距离减少多少？",
+      "target_fact_ids": ["F04"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q05",
+      "question": "夜间低频环境噪声降低6分贝后，受试者第二天的持续注意任务正确率如何变化？",
+      "target_fact_ids": ["F05"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q06",
+      "question": "明代地方契约文书中，“立约人”与“见证人”的共现率是多少？",
+      "target_fact_ids": ["F06"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q07",
+      "question": "在25摄氏度和60%相对湿度的条件下，某类生物基薄膜的水蒸气透过率是多少？",
+      "target_fact_ids": ["F07"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q08",
+      "question": "采用双层石墨烯电极的原型超级电容器，经5000次充放电循环后容量保持率是多少？",
+      "target_fact_ids": ["F08"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q09",
+      "question": "在三个社区的问卷中，受访者认为影响绿色出行政策接受度的第一影响因素是什么？",
+      "target_fact_ids": ["F09"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q10",
+      "question": "清代游记文本中，对桥梁的描述常与哪几个词形成稳定的语义关联？",
+      "target_fact_ids": ["F10"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q11",
       "question": "河口沉积物培养实验中，加入少量生物炭后铵态氮的平均吸附量提高了多少？",
       "target_fact_ids": ["F11"],
       "type": "atomic",
       "note": ""
     },
     {
-      "id": "Q05",
-      "question": "海拔 1200 米的温室实验中，夜间温度每降低 1 摄氏度，番茄幼苗平均叶面积会怎样变化？",
+      "id": "Q12",
+      "question": "删除最高介数的5%节点后，交通网络模型的平均最短路径长度增加了多少？",
+      "target_fact_ids": ["F12"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q13",
+      "question": "实验室合成的多孔陶瓷经800摄氏度烧结2小时后的孔隙率和抗压强度分别是多少？",
+      "target_fact_ids": ["F13"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q14",
+      "question": "在控制年龄和收入后，城市公共空间可达性与居民邻里信任度之间是什么关系？",
+      "target_fact_ids": ["F14"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q15",
+      "question": "唐代诗歌中，表示“远望”的动词与表示“秋季”的时间词的共现概率相比随机基线如何？",
+      "target_fact_ids": ["F15"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q16",
+      "question": "相比标准全注意力模型，稀疏注意力模型在推理显存占用和端到端延迟上分别表现如何？",
+      "target_fact_ids": ["F16"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q17",
+      "question": "三种桥面铺装材料经冻融试验后，哪种材料的质量损失率最低？",
+      "target_fact_ids": ["F17"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q18",
+      "question": "将图像分辨率从224像素提高到384像素后，小目标类别的召回率如何变化？",
+      "target_fact_ids": ["F18"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q19",
+      "question": "首次使用共享单车的人群中，约多少人会在第一次骑行前主动查看停车规则？",
+      "target_fact_ids": ["F19"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q20",
+      "question": "某古典小说章节标题中，地名词占全部专名的比例是多少？",
+      "target_fact_ids": ["F20"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q21",
+      "question": "小型风洞实验中，翼型尾缘增加2毫米圆角后平均阻力系数如何变化？",
+      "target_fact_ids": ["F21"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q22",
+      "question": "2019年至2023年的公开城市规划文本中，“韧性”一词的年度频率发生了什么变化？",
+      "target_fact_ids": ["F22"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q23",
+      "question": "加入时间约束后，基于事件抽取的文本检索器在历史事件问答上的Top-5召回率如何变化？",
+      "target_fact_ids": ["F23"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q24",
+      "question": "对来源日期进行排序后，检索增强生成系统在冲突信息测试中的事实冲突率如何变化？",
+      "target_fact_ids": ["F24"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q25",
+      "question": "海拔1200米温室实验中，夜间温度每降低1摄氏度番茄幼苗平均叶面积会怎样变化？",
       "target_fact_ids": ["F25"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q26",
+      "question": "古籍目录网络分析中，约多少比例的高频作者节点同时连接至少三个不同版本系统？",
+      "target_fact_ids": ["F26"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q27",
+      "question": "把按钮标签从抽象名词改为动作动词后，首次任务完成时间发生了什么变化？",
+      "target_fact_ids": ["F27"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q28",
+      "question": "某沿海城市公交换乘调查中，换乘等待时间超过多少分钟后满意度下降速度明显加快？",
+      "target_fact_ids": ["F28"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q29",
+      "question": "机械臂抓取实验中，加入触觉反馈后脆弱物体的平均破损率如何变化？",
+      "target_fact_ids": ["F29"],
+      "type": "atomic",
+      "note": ""
+    },
+    {
+      "id": "Q30",
+      "question": "包含50万条短文本的中文语料库在去除重复句后，唯一文本比例如何变化？",
+      "target_fact_ids": ["F30"],
       "type": "atomic",
       "note": ""
     },
@@ -42,7 +217,140 @@
       "question": "实验所用的玻璃培养皿直径是多少毫米？",
       "target_fact_ids": ["D01"],
       "type": "distractor",
-      "note": "干扰事实：语料中存在，但不属于任何论文的真实结论，评测它是否被误当答案"
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD02",
+      "question": "研究团队在预实验阶段记录了多少种不同的环境光照条件？",
+      "target_fact_ids": ["D02"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD03",
+      "question": "样本编号采用什么样的组合方式生成？",
+      "target_fact_ids": ["D03"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD04",
+      "question": "所有统计图采用每厘米多少个刻度的统一网格？",
+      "target_fact_ids": ["D04"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD05",
+      "question": "实验室墙面使用了什么颜色的吸音材料？",
+      "target_fact_ids": ["D05"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD06",
+      "question": "访谈主持人的平均从业年限是多少年？",
+      "target_fact_ids": ["D06"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD07",
+      "question": "数据采集设备每隔多少分钟自动保存一次缓存？",
+      "target_fact_ids": ["D07"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD08",
+      "question": "研究区域内最高的建筑有多少层？",
+      "target_fact_ids": ["D08"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD09",
+      "question": "问卷页面的默认字体大小是多少像素？",
+      "target_fact_ids": ["D09"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD10",
+      "question": "语料清洗时使用了一个包含多少个停用词的自定义列表？",
+      "target_fact_ids": ["D10"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD11",
+      "question": "所有传感器在正式实验前均静置多少小时？",
+      "target_fact_ids": ["D11"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD12",
+      "question": "田野调查期间共使用了几台便携式录音设备？",
+      "target_fact_ids": ["D12"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD13",
+      "question": "模型训练使用的批大小固定为多少？",
+      "target_fact_ids": ["D13"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD14",
+      "question": "实验记录表由几名研究助理分别独立填写？",
+      "target_fact_ids": ["D14"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD15",
+      "question": "样品运输过程的平均距离是多少公里？",
+      "target_fact_ids": ["D15"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD16",
+      "question": "研究期间当地平均风速为每秒多少米？",
+      "target_fact_ids": ["D16"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD17",
+      "question": "所有受试者均在什么时间完成设备熟悉环节？",
+      "target_fact_ids": ["D17"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD18",
+      "question": "文本编码采用什么格式保存？",
+      "target_fact_ids": ["D18"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD19",
+      "question": "实验服务器配置为多少核处理器和多少GB内存？",
+      "target_fact_ids": ["D19"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
+    },
+    {
+      "id": "QD20",
+      "question": "研究日志在每天什么时间统一归档？",
+      "target_fact_ids": ["D20"],
+      "type": "distractor",
+      "note": "干扰事实：该细节虽出现在语料中，但不属于论文的真实结论，评测模型是否误当答案（防幻觉）"
     }
   ]
 }

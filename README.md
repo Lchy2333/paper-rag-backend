@@ -256,7 +256,7 @@ python temp.py        # 重新生成 goldentest/pdf/*.pdf 与 goldentest/facts.j
 
 > 说明：`temp.py` 会额外生成 `01_原子事实.pdf`、`07_事实映射表.pdf` 两个辅助参考文件（非检索语料，可删除）。当前 `goldentest/pdf/` 只保留 5 篇论文 PDF（已按标题命名），生成后如需保持一致请只保留 `0X_论文X.pdf`。
 
-**跑评测（离线一致性校验）**：
+**跑评测（v1：离线一致性校验）**：
 
 ```bash
 go run ./goldentest/eval
@@ -264,7 +264,15 @@ go run ./goldentest/eval
 
 校验每条问题的目标事实是否存在于 `facts.json`、能否在语料解析文本中逐字命中，并自动解析出期望答案与位置；任意标注损坏则以非零码退出（可接 CI）。报告输出到 `goldentest/reports/`。
 
-> 下一阶段：把 5 篇入库到测试库后，可扩展 `-retrieval` 开关做"向量检索是否命中目标 chunk"的 Recall@K 评测（脚本内已留 TODO）。
+**跑评测（v2：检索 Recall@K，需要语料入库 + Ollama）**：
+
+```powershell
+$env:TEST_DATABASE_PASSWORD = "你的数据库密码"
+go run ./goldentest/eval -ingest -retrieval   # 重灌语料 + v1 + v2
+go run ./goldentest/eval -retrieval            # 库中已有语料时只跑 v2
+```
+
+v2 用 bge-m3 编码问题 → 在库中向量检索 topK → 判断"包含目标事实的 chunk"是否在结果内 → 输出 `Recall@1/3/5/10` 与 `MRR@10`（distractor 问题单列，不计入指标）。`-ingest` 会先删除与 `goldentest/pdf/` 同名的旧文档再重灌（修复前摄入的脏数据也由此清掉）。
 
 ## 测试
 
