@@ -110,8 +110,8 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		doc.Title = strings.TrimSuffix(filename, ext)
 	}
 
-	// 3. 分块
-	chunks := chunker.SplitPages(parsed.Pages, s.chunkCfg)
+	// 3. 分块：文本块按字符切，表格块按"表头 + N 行"自包含切
+	chunks := chunker.SplitBlocks(parsed.Blocks, s.chunkCfg)
 	if len(chunks) == 0 {
 		s.fail(doc, "PDF 未能提取到文本内容")
 		return doc, errors.New("PDF 未能提取到文本内容")

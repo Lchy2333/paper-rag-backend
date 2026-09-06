@@ -9,7 +9,7 @@
 - **Ollama 本地模型**（默认）：Embedding 用 `bge-m3`，Chat 用 `qwen3:8b`，全部本地运行、无需联网与 API Key
 - **OpenAI 兼容接口**：`base_url` 可切换任意 OpenAI 兼容服务（DeepSeek / Qwen / Ollama / OpenAI）
 - **PostgreSQL 18 + pgvector**（默认存储），也可切回内存实现便于开发
-- **ledongthuc/pdf** 纯 Go PDF 文本提取
+- **ledongthuc/pdf** 纯 Go PDF 文本提取（含**框线表格识别 → Markdown**）
 
 ## 目录结构
 
@@ -19,8 +19,8 @@ config/                # 配置文件（config.example.yaml 为模板）
 db/init.sql            # 建库建表脚本
 internal/config/       # 配置加载（支持 ${ENV} 占位符）
 internal/model/        # 领域模型
-internal/parser/       # PDF 解析
-internal/chunker/      # 文本分块
+internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown）
+internal/chunker/      # 分块（文本按字符切，表格按"表头+N 行"自包含切）
 internal/ai/           # Embedding + Chat 客户端
 internal/store/        # 存储接口 + 内存/PostgreSQL 实现
 internal/service/      # 摄入流水线 / RAG 问答
@@ -305,6 +305,38 @@ go test ./tests/integration -run TestPostgresStore -v
 
 - **依赖注入**：handler → service → store 接口 + ai 客户端，全部由 main 装配
 - **向量检索**：pgvector `<=>` 余弦距离 + HNSW 索引，毫秒级返回
+- **表格解析**：框线表格识别为 Markdown；分块时表格按"表头 + N 行"独立成自包含 chunk（每个子块带表头，值不脱离列名，避免多表挤一 chunk 稀释语义）
 - **引用溯源**：chunk 带页码，回答带 `[n]` 编号引用
 - **状态追踪**：文档 `pending / ready / failed` 三态，失败保留原因
 - **嵌入模型一致性**：文档与提问必须用同一 embedding 模型（同坐标系）；chat 模型可任意替换
+
+## Roadmap / 下一步规划
+
+按"RAG 后端"与"未来 Agent 项目"划分职责（RAG 保持无状态能力层，对话/流式/登录上浮到 Agent）：
+
+### P0：补齐"完整 RAG 后端"闭环
+| 项 | 归属 | 说明 |
+|---|---|---|
+| 异步摄入队列 | RAG | 大 PDF 摄入不再阻塞请求，工具调用先返回 job id |
+| 混合检索（BM25 + 向量） | RAG | 解决公式/编号/专名检索弱项（避坑指南 #7） |
+| 服务级鉴权（API Key） | RAG | Agent ↔ RAG 的服务间鉴权；用户登录在 Agent/前端 |
+| Docker 化部署 | RAG + Agent | RAG 作为独立服务部署 |
+| 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
+
+### P1：更"工业"
+- 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
+- **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格
+- **断页表格识别（待修）**：当前跨页表格被拆成两个 chunk，下页部分可能丢表头、行列错位，需支持跨页合并识别
+- **表格语义化表示**：把表格转"键值句"（`状态码500：错误详情为…`）进向量，缓解数字/符号检索弱项（当前 MD 表格对数字类提问命中一般）
+- Rerank 重排序（当前 MRR@10≈0.81，排序有提升空间）
+- **文件存储抽象（`FileStore` 接口）+ 接 MinIO/OSS/S3**：上传的原始 PDF 改为对象存储（单机用本地 `uploads/` 即可，多实例/上线时必做——与 Docker 部署、异步摄入队列配套，原文件是"归档件"，检索热路径仍走 DB）
+- 可观测性（结构化日志 / Prometheus 指标 / 链路追踪）
+- 限流 / 防滥用
+- 黄金测试集接入 CI 门禁
+
+### P2：进阶
+- 总结（归纳）型问题的"多证据句 + 覆盖率"评测（goldentest 已留扩展位）
+- 自适应分块（按语义/标题）、元数据过滤（作者/日期/标签）
+- 缓存（embedding / 检索结果 / LLM 响应）
+- 安全加固（提示注入防护 / 文档级授权 / 日志脱敏）
+- 文档版本管理、增量更新

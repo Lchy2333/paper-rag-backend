@@ -3,6 +3,8 @@ package chunker
 import (
 	"strings"
 	"unicode/utf8"
+
+	"paper-rag-backend/internal/parser"
 )
 
 // Chunk 是一个切分后的文本片段。
@@ -15,6 +17,29 @@ type Chunk struct {
 type ChunkConfig struct {
 	Size    int // 每个 chunk 的目标字符数
 	Overlap int // 相邻 chunk 重叠字符数
+}
+
+// SplitBlocks 按页切分块流：文本块按字符滑窗切，表格块按"表头 + N 行"
+// 自包含地切成若干子块（每个子块都带表头），保证值不脱离列名。
+func SplitBlocks(pages [][]parser.Block, cfg ChunkConfig) []Chunk {
+	if cfg.Size <= 0 {
+		cfg.Size = 800
+	}
+	if cfg.Overlap >= cfg.Size {
+		cfg.Overlap = cfg.Size / 4
+	}
+
+	var chunks []Chunk
+	for pi, blocks := range pages {
+		for _, b := range blocks {
+			if b.Kind == parser.BlockTable {
+				chunks = append(chunks, splitTable(b.Content, cfg, pi+1)...)
+			} else {
+				chunks = append(chunks, splitText(b.Content, cfg, pi+1)...)
+			}
+		}
+	}
+	return chunks
 }
 
 // SplitPages 按页切分文档。pages[i] 对应第 i+1 页文本。
@@ -30,6 +55,47 @@ func SplitPages(pages []string, cfg ChunkConfig) []Chunk {
 	for i, page := range pages {
 		chunks = append(chunks, splitText(page, cfg, i+1)...)
 	}
+	return chunks
+}
+
+// splitTable 把 Markdown 表格按"表头 + 若干行"切分成自包含的子块。
+// 首行为表头，每个子块都以表头开头，子块大小以接近 cfg.Size 为准。
+func splitTable(md string, cfg ChunkConfig, page int) []Chunk {
+	lines := strings.Split(md, "\n")
+	if len(lines) == 0 {
+		return nil
+	}
+	header := strings.TrimSpace(lines[0])
+	var rows []string
+	for _, l := range lines[1:] {
+		if s := strings.TrimSpace(l); s != "" {
+			rows = append(rows, s)
+		}
+	}
+	if header == "" || len(rows) == 0 {
+		return nil
+	}
+
+	var chunks []Chunk
+	var cur []string
+	curLen := utf8.RuneCountInString(header)
+	flush := func() {
+		if len(cur) == 0 {
+			return
+		}
+		content := header + "\n" + strings.Join(cur, "\n")
+		chunks = append(chunks, Chunk{Page: page, Content: content})
+		cur = nil
+		curLen = utf8.RuneCountInString(header)
+	}
+	for _, r := range rows {
+		if len(cur) > 0 && curLen+utf8.RuneCountInString(r)+1 > cfg.Size {
+			flush()
+		}
+		cur = append(cur, r)
+		curLen += utf8.RuneCountInString(r) + 1
+	}
+	flush()
 	return chunks
 }
 
