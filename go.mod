@@ -12,6 +12,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+// 本地 fork：修复 ledongthuc/pdf 对中文 PDF 的三种缺陷
+//  1. Type0 CID 字体 GBK-EUC-H 编码未解码（知网/方正排版中文乱码）
+//  2. Dict 编码字体忽略 ToUnicode CMap
+//  3. 缺 /Widths 的字体逐字 X 坐标不推进导致阅读顺序被打乱
+replace github.com/ledongthuc/pdf => ./third_party/pdf
+
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
