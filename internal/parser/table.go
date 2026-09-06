@@ -7,11 +7,12 @@ import (
 	"github.com/ledongthuc/pdf"
 )
 
-// line 是网格线：fix 为固定坐标（H 线为 y、V 线为 x），lo/hi 为线段覆盖范围。
-type line struct {
-	fix float64
-	lo  float64
-	hi  float64
+// Line 是网格线：Fix 为固定坐标（H 线为 y、V 线为 x），Lo/Hi 为线段覆盖范围。
+// 导出供 tests/unit 黑盒测试使用。
+type Line struct {
+	Fix float64
+	Lo  float64
+	Hi  float64
 }
 
 // table 是识别出的一个框线表格，bot/top 为其 y 范围（PDF 坐标，Y 向上）。
@@ -27,28 +28,28 @@ const (
 	lineMinLen = 3.0 // 小于该长度的矩形视为线帽噪声
 )
 
-// clusterLines 按 fix 聚类（tol 内视为同一条网格线），
-// 同一 fix 簇内先按 lo 排序再按连续性分段，避免把跨多个表格的
-// 断线段合并成一条贯穿长线，也避免同 fix 乱序导致的翻倍。
-func clusterLines(ls []line, tol float64) []line {
-	sort.Slice(ls, func(i, j int) bool { return ls[i].fix < ls[j].fix })
-	var out []line
+// ClusterLines 按 Fix 聚类（tol 内视为同一条网格线），
+// 同一 Fix 簇内先按 Lo 排序再按连续性分段，避免把跨多个表格的
+// 断线段合并成一条贯穿长线，也避免同 Fix 乱序导致的翻倍。
+func ClusterLines(ls []Line, tol float64) []Line {
+	sort.Slice(ls, func(i, j int) bool { return ls[i].Fix < ls[j].Fix })
+	var out []Line
 	i := 0
 	for i < len(ls) {
 		j := i
-		for j < len(ls) && ls[j].fix-ls[i].fix <= tol {
+		for j < len(ls) && ls[j].Fix-ls[i].Fix <= tol {
 			j++
 		}
 		group := ls[i:j]
-		sort.Slice(group, func(a, b int) bool { return group[a].lo < group[b].lo })
+		sort.Slice(group, func(a, b int) bool { return group[a].Lo < group[b].Lo })
 		cur := group[0]
 		for k := 1; k < len(group); k++ {
-			if group[k].lo <= cur.hi+2 {
-				if group[k].lo < cur.lo {
-					cur.lo = group[k].lo
+			if group[k].Lo <= cur.Hi+2 {
+				if group[k].Lo < cur.Lo {
+					cur.Lo = group[k].Lo
 				}
-				if group[k].hi > cur.hi {
-					cur.hi = group[k].hi
+				if group[k].Hi > cur.Hi {
+					cur.Hi = group[k].Hi
 				}
 			} else {
 				out = append(out, cur)
@@ -65,16 +66,16 @@ func clusterLines(ls []line, tol float64) []line {
 // 把每个表格渲染为 Markdown 后返回，按顶部 y 从高到低排序。
 // v1 只处理"有完整框线网格"的表格，无框线/纯线段表格不识别。
 func detectTables(content pdf.Content) []table {
-	var hs, vs []line
+	var hs, vs []Line
 	for _, rc := range content.Rect {
 		if rc.Max.X-rc.Min.X < lineMinLen || rc.Max.Y-rc.Min.Y < lineMinLen {
 			continue
 		}
-		hs = append(hs, line{rc.Min.Y, rc.Min.X, rc.Max.X}, line{rc.Max.Y, rc.Min.X, rc.Max.X})
-		vs = append(vs, line{rc.Min.X, rc.Min.Y, rc.Max.Y}, line{rc.Max.X, rc.Min.Y, rc.Max.Y})
+		hs = append(hs, Line{rc.Min.Y, rc.Min.X, rc.Max.X}, Line{rc.Max.Y, rc.Min.X, rc.Max.X})
+		vs = append(vs, Line{rc.Min.X, rc.Min.Y, rc.Max.Y}, Line{rc.Max.X, rc.Min.Y, rc.Max.Y})
 	}
-	hl := clusterLines(hs, gridTol)
-	vl := clusterLines(vs, gridTol)
+	hl := ClusterLines(hs, gridTol)
+	vl := ClusterLines(vs, gridTol)
 	if len(hl) < 2 || len(vl) < 2 {
 		return nil
 	}
@@ -82,36 +83,36 @@ func detectTables(content pdf.Content) []table {
 	// 剔除页面边框线：坐标处于极值且跨度贯穿（> 半个最大跨度）。
 	var maxHSpan, maxVSpan float64
 	for _, h := range hl {
-		if h.hi-h.lo > maxHSpan {
-			maxHSpan = h.hi - h.lo
+		if h.Hi-h.Lo > maxHSpan {
+			maxHSpan = h.Hi - h.Lo
 		}
 	}
 	for _, v := range vl {
-		if v.hi-v.lo > maxVSpan {
-			maxVSpan = v.hi - v.lo
+		if v.Hi-v.Lo > maxVSpan {
+			maxVSpan = v.Hi - v.Lo
 		}
 	}
-	minHFix, maxHFix := hl[0].fix, hl[0].fix
+	minHFix, maxHFix := hl[0].Fix, hl[0].Fix
 	for _, h := range hl {
-		if h.fix < minHFix {
-			minHFix = h.fix
+		if h.Fix < minHFix {
+			minHFix = h.Fix
 		}
-		if h.fix > maxHFix {
-			maxHFix = h.fix
+		if h.Fix > maxHFix {
+			maxHFix = h.Fix
 		}
 	}
-	minVFix, maxVFix := vl[0].fix, vl[0].fix
+	minVFix, maxVFix := vl[0].Fix, vl[0].Fix
 	for _, v := range vl {
-		if v.fix < minVFix {
-			minVFix = v.fix
+		if v.Fix < minVFix {
+			minVFix = v.Fix
 		}
-		if v.fix > maxVFix {
-			maxVFix = v.fix
+		if v.Fix > maxVFix {
+			maxVFix = v.Fix
 		}
 	}
 	hl2 := hl[:0]
 	for _, h := range hl {
-		if (h.fix == minHFix || h.fix == maxHFix) && h.hi-h.lo > 0.5*maxHSpan {
+		if (h.Fix == minHFix || h.Fix == maxHFix) && h.Hi-h.Lo > 0.5*maxHSpan {
 			continue
 		}
 		hl2 = append(hl2, h)
@@ -119,7 +120,7 @@ func detectTables(content pdf.Content) []table {
 	hl = hl2
 	vl2 := vl[:0]
 	for _, v := range vl {
-		if (v.fix == minVFix || v.fix == maxVFix) && v.hi-v.lo > 0.5*maxVSpan {
+		if (v.Fix == minVFix || v.Fix == maxVFix) && v.Hi-v.Lo > 0.5*maxVSpan {
 			continue
 		}
 		vl2 = append(vl2, v)
@@ -133,22 +134,22 @@ func detectTables(content pdf.Content) []table {
 	// 因此按 (lo, hi) 聚类 V 线段即可得到每个表格的列线与垂直范围，
 	// 不受各表格行高差异影响（行高 15~32pt 与表间空隙重叠时仍稳定）。
 	sort.Slice(vl, func(i, j int) bool {
-		if vl[i].lo != vl[j].lo {
-			return vl[i].lo < vl[j].lo
+		if vl[i].Lo != vl[j].Lo {
+			return vl[i].Lo < vl[j].Lo
 		}
-		return vl[i].hi < vl[j].hi
+		return vl[i].Hi < vl[j].Hi
 	})
 	const spanTol = 5.0
-	var vgroups [][]line
+	var vgroups [][]Line
 	for _, v := range vl {
 		if len(vgroups) > 0 {
 			g := vgroups[len(vgroups)-1]
-			if abs(v.lo-g[0].lo) <= spanTol && abs(v.hi-g[0].hi) <= spanTol {
+			if abs(v.Lo-g[0].Lo) <= spanTol && abs(v.Hi-g[0].Hi) <= spanTol {
 				vgroups[len(vgroups)-1] = append(vgroups[len(vgroups)-1], v)
 				continue
 			}
 		}
-		vgroups = append(vgroups, []line{v})
+		vgroups = append(vgroups, []Line{v})
 	}
 
 	var tables []table
@@ -156,19 +157,19 @@ func detectTables(content pdf.Content) []table {
 		if len(g) < 2 {
 			continue
 		}
-		bot, top := g[0].lo, g[0].hi
+		bot, top := g[0].Lo, g[0].Hi
 		var xs []float64
 		for _, v := range g {
-			xs = append(xs, v.fix)
+			xs = append(xs, v.Fix)
 		}
 		sort.Float64s(xs)
 		xs = dedupeFloat(xs)
 		if len(xs) < 2 {
 			continue
 		}
-		var gh []line
+		var gh []Line
 		for _, h := range hl {
-			if h.fix >= bot-2 && h.fix <= top+2 {
+			if h.Fix >= bot-2 && h.Fix <= top+2 {
 				gh = append(gh, h)
 			}
 		}
@@ -215,13 +216,13 @@ type idxText struct {
 }
 
 // renderTable 用 H/V 网格线 + 页面文本构建 Markdown 表格。
-func renderTable(hs, vs []line, texts []idxText) string {
+func renderTable(hs, vs []Line, texts []idxText) string {
 	var hys, vxs []float64
 	for _, h := range hs {
-		hys = append(hys, h.fix)
+		hys = append(hys, h.Fix)
 	}
 	for _, v := range vs {
-		vxs = append(vxs, v.fix)
+		vxs = append(vxs, v.Fix)
 	}
 	sort.Float64s(hys)
 	sort.Float64s(vxs)
@@ -232,7 +233,7 @@ func renderTable(hs, vs []line, texts []idxText) string {
 	tableTop, tableBot := hys[len(hys)-1], hys[0]
 	cells := make([][]idxText, nr*nc)
 	for _, it := range texts {
-		if cleanText(it.t.S) == "" {
+		if CleanText(it.t.S) == "" {
 			continue
 		}
 		if it.t.Y < tableBot-1 || it.t.Y > tableTop+1 {
@@ -268,7 +269,7 @@ func renderTable(hs, vs []line, texts []idxText) string {
 			for _, it := range txts {
 				cell.WriteString(it.t.S)
 			}
-			cellStr := cleanText(cell.String())
+			cellStr := CleanText(cell.String())
 			cellStr = strings.ReplaceAll(cellStr, "|", "\\|")
 			rowCells = append(rowCells, cellStr)
 		}
@@ -293,8 +294,9 @@ func renderTable(hs, vs []line, texts []idxText) string {
 	return strings.TrimRight(sb.String(), "\n")
 }
 
-// cleanText 过滤解码失败字符与空白。
-func cleanText(s string) string {
+// CleanText 过滤解码失败字符与空白。
+// 导出供 tests/unit 黑盒测试使用。
+func CleanText(s string) string {
 	s = strings.ToValidUTF8(s, "")
 	var sb strings.Builder
 	for _, r := range s {
