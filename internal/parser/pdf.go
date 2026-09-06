@@ -10,14 +10,31 @@ import (
 	"github.com/ledongthuc/pdf"
 )
 
-// ParsedDocument 是 PDF 解析后的结果，按页保留文本。
+// BlockKind 区分页面内容块的类型。
+type BlockKind int
+
+const (
+	// BlockText 是普通文本块。
+	BlockText BlockKind = iota
+	// BlockTable 是表格块，Content 为 Markdown 表格文本。
+	BlockTable
+)
+
+// Block 是页面内容的一个有序块：普通文本或表格（Markdown）。
+type Block struct {
+	Kind    BlockKind
+	Content string
+}
+
+// ParsedDocument 是 PDF 解析后的结果，按页保留文本与块流。
 type ParsedDocument struct {
 	Title     string
 	PageCount int
-	Pages     []string // Pages[i] 为第 i 页的文本
+	Pages     []string  // Pages[i] 为第 i 页的文本（表格以 Markdown 表示，向后兼容）
+	Blocks    [][]Block // Blocks[i] 为第 i 页的有序块流（text/table 按版面顺序交替）
 }
 
-// ParsePDF 从 reader 解析 PDF，返回按页划分的文本。
+// ParsePDF 从 reader 解析 PDF，返回按页划分的文本与块流。
 func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 	end, err := trimTrailingJunk(r, size)
 	if err != nil {
@@ -33,16 +50,96 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 		Title:     inferTitle(reader),
 		PageCount: pageCount,
 		Pages:     make([]string, 0, pageCount),
+		Blocks:    make([][]Block, 0, pageCount),
 	}
 
 	for i := 1; i <= pageCount; i++ {
-		text, err := pageText(reader.Page(i))
+		blocks, err := pageBlocks(reader.Page(i))
 		if err != nil {
 			return nil, fmt.Errorf("解析第 %d 页失败: %w", i, err)
 		}
-		doc.Pages = append(doc.Pages, normalizeText(text))
+		doc.Blocks = append(doc.Blocks, blocks)
+		doc.Pages = append(doc.Pages, pageTextFromBlocks(blocks))
 	}
 	return doc, nil
+}
+
+// pageTextFromBlocks 把页面块流拼接成整页文本（块间空行分隔），
+// 供 Pages 字段向后兼容使用。
+func pageTextFromBlocks(blocks []Block) string {
+	var sb strings.Builder
+	for i, b := range blocks {
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
+		sb.WriteString(b.Content)
+	}
+	return normalizeText(sb.String())
+}
+
+// pageBlocks 提取页面的有序块流：普通文本块 + 表格块（Markdown）。
+// 块按版面顺序排列（从上到下），表格块整体独立，不与其他文本混排。
+func pageBlocks(p pdf.Page) (blocks []Block, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			blocks = nil
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
+	content := p.Content()
+	tables := detectTables(content)
+	if len(tables) == 0 {
+		text, err := pageText(p)
+		if err != nil {
+			return nil, err
+		}
+		return []Block{{Kind: BlockText, Content: text}}, nil
+	}
+
+	texts := content.Text
+	sort.Slice(texts, func(i, j int) bool {
+		if texts[i].Y != texts[j].Y {
+			return texts[i].Y > texts[j].Y
+		}
+		return texts[i].X < texts[j].X
+	})
+
+	var textBuf strings.Builder
+	flushText := func() {
+		if s := normalizeText(textBuf.String()); s != "" {
+			blocks = append(blocks, Block{Kind: BlockText, Content: s})
+		}
+		textBuf.Reset()
+	}
+
+	rendered := make([]bool, len(tables))
+	lastY := 0.0
+	for i, t := range texts {
+		ti := -1
+		for k := range tables {
+			if t.Y >= tables[k].bot-1 && t.Y <= tables[k].top+1 {
+				ti = k
+				break
+			}
+		}
+		if ti >= 0 {
+			if !rendered[ti] {
+				flushText()
+				blocks = append(blocks, Block{Kind: BlockTable, Content: tables[ti].md})
+				rendered[ti] = true
+			}
+			lastY = t.Y
+			continue
+		}
+		if i > 0 && t.Y < lastY-2.0 {
+			textBuf.WriteByte('\n')
+		}
+		lastY = t.Y
+		textBuf.WriteString(t.S)
+	}
+	flushText()
+	return blocks, nil
 }
 
 // pageText 用库的 Content()（带坐标的逐字文本）按阅读顺序重建页面文本。
