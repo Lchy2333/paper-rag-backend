@@ -49,8 +49,10 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 		userID = defaultOwnerUserID
 	}
 	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold, store.SearchOptions{
-		DocIDs: q.DocumentIDs,
-		UserID: userID,
+		DocIDs:    q.DocumentIDs,
+		UserID:    userID,
+		UseHybrid: true,
+		QueryText: q.Query,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("检索失败: %w", err)

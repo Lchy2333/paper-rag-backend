@@ -6,10 +6,10 @@
 
 - **Go** 1.21+（开发环境为 1.26）
 - **Gin** Web 框架
-- **Ollama 本地模型**（默认）：Embedding 用 `bge-m3`，Chat 用 `qwen3:8b`，全部本地运行、无需联网与 API Key
+- **Ollama 本地模型**（默认）：Embedding 用 `bge-m3`，Chat 用 `qwen3:8b`，公式 OCR 用 `qwen2.5vl:7b`（视觉模型），全部本地运行、无需联网与 API Key
 - **OpenAI 兼容接口**：`base_url` 可切换任意 OpenAI 兼容服务（DeepSeek / Qwen / Ollama / OpenAI）
 - **PostgreSQL 18 + pgvector**（默认存储），也可切回内存实现便于开发
-- **ledongthuc/pdf** 纯 Go PDF 文本提取（含**框线表格识别 → Markdown**）
+- **ledongthuc/pdf** 纯 Go PDF 文本提取（含**框线表格识别 → Markdown**、**公式区域检测**）
 
 ## 目录结构
 
@@ -19,10 +19,12 @@ config/                # 配置文件（config.example.yaml 为模板）
 db/init.sql            # 建库建表脚本
 internal/config/       # 配置加载（支持 ${ENV} 占位符）
 internal/model/        # 领域模型
-internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown）
-internal/chunker/      # 分块（文本按字符切，表格按"表头+N 行"自包含切）
-internal/ai/           # Embedding + Chat 客户端
-internal/store/        # 存储接口 + 内存/PostgreSQL 实现
+internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown + 公式区域检测）
+internal/chunker/      # 分块（文本按字符切，表格按"表头+N 行"自包含切，公式整块独立）
+internal/ai/           # Embedding + Chat + 公式 OCR（图片截图 → LaTeX）客户端
+internal/render/       # PDF 渲染（PyMuPDF）按公式坐标裁剪截图
+internal/segment/      # 中文分词（gojieba，纯 Go），供 tsvector 全文检索
+internal/store/        # 存储接口 + 内存/PostgreSQL 实现（pgvector + tsvector 混合检索）
 internal/service/      # 摄入流水线 / RAG 问答
 internal/httpapi/      # Gin 路由与处理器
 tests/                 # 测试：unit/ 单元测试、integration/ 集成测试（连测试库）
@@ -41,6 +43,8 @@ temp.py                # 黄金语料生成器：生成 PDF 与 facts.json
 ```bash
 ollama pull bge-m3        # embedding（多语言，1024 维）
 ollama pull qwen3:8b      # chat（中文对话）
+ollama pull qwen2.5vl:7b  # 公式 OCR（多模态视觉，还原 LaTeX，可选）
+pip install pymupdf       # 公式截图渲染（MuPDF 内核，可选，需配置 render.python_cmd）
 ```
 
 ### 2. 准备配置
@@ -64,6 +68,15 @@ ai:
     base_url: ""                          # 可选：chat 单独用别的地址（如 OpenAI），留空则用 ai.base_url
     api_key: ""                           # 可选：chat 单独用别的 key（如 ${OPENAI_API_KEY}），留空则用 ai.api_key
     model: "qwen3:8b"
+  formula:                                # 可选：公式 OCR（公式区域截图 → LaTeX）
+    base_url: "http://localhost:11434/v1" # 可选：留空则用 ai.base_url
+    api_key: "ollama"
+    model: "qwen2.5vl:7b"                 # 多模态视觉模型；不配/拉不到则公式保持扁平文本入库
+
+render:                                   # 可选：PDF 渲染（公式截图），需先 pip install pymupdf
+  python_cmd: "python"                    # Python 可执行文件；留空则公式退回扁平文本
+  dpi: 150                                # 渲染分辨率
+  work_dir: ""                            # 渲染临时目录，留空用系统临时目录
 database:
   type: "postgres"                        # 仅支持 postgres
   user: "postgres"
@@ -297,7 +310,7 @@ go test ./tests/integration -run TestPostgresStore -v
 
 | 实现 | 配置 `database.type` | 特点 |
 |------|---------------------|------|
-| `PostgresStore` | `postgres` | 生产推荐，pgvector 向量检索，数据持久化 |
+| `PostgresStore` | `postgres` | 生产推荐，pgvector 向量检索 + tsvector 全文检索 + pg_trgm 字面（三路 RRF 融合），数据持久化 |
 
 接口抽象保证后续若接新数据库（Qdrant、Milvus 等）只需新增实现，业务代码零改动。
 
@@ -305,7 +318,9 @@ go test ./tests/integration -run TestPostgresStore -v
 
 - **依赖注入**：handler → service → store 接口 + ai 客户端，全部由 main 装配
 - **向量检索**：pgvector `<=>` 余弦距离 + HNSW 索引，毫秒级返回
+- **混合检索**：向量（语义）+ tsvector 全文（BM25 风格，gojieba 中文分词）+ pg_trgm 字面（公式/编号），三路 RRF 融合，解决公式/符号字面精确匹配弱项；三条路都遵守 `user_id` / `document_id` 归属过滤（`store.buildFilterClause` 统一生成）
 - **表格解析**：框线表格识别为 Markdown；分块时表格按"表头 + N 行"独立成自包含 chunk（每个子块带表头，值不脱离列名，避免多表挤一 chunk 稀释语义）
+- **公式识别**：字体指纹（Cambria Math / MT Extra / Euclid / Symbol / Times）检测公式区域 → **PyMuPDF 渲染 PDF 并按坐标裁剪公式截图** → 视觉模型（qwen2.5vl）OCR 还原 LaTeX → 公式整块成 chunk 向量化入库（公式块不与其他文本混切；截图失败降级为扁平文本）
 - **引用溯源**：chunk 带页码，回答带 `[n]` 编号引用
 - **状态追踪**：文档 `pending / ready / failed` 三态，失败保留原因
 - **嵌入模型一致性**：文档与提问必须用同一 embedding 模型（同坐标系）；chat 模型可任意替换
@@ -318,13 +333,14 @@ go test ./tests/integration -run TestPostgresStore -v
 | 项 | 归属 | 说明 |
 |---|---|---|
 | 异步摄入队列 | RAG | 大 PDF 摄入不再阻塞请求，工具调用先返回 job id |
-| 混合检索（BM25 + 向量） | RAG | 解决公式/编号/专名检索弱项（避坑指南 #7） |
+| ~~混合检索（BM25 + 向量）~~ | RAG | ✅ 已实现（2026-09）：向量 + tsvector 全文（gojieba 分词）+ pg_trgm 字面，三路 RRF 融合 |
 | 服务级鉴权（API Key） | RAG | Agent ↔ RAG 的服务间鉴权；用户登录在 Agent/前端 |
 | Docker 化部署 | RAG + Agent | RAG 作为独立服务部署 |
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
 
 ### P1：更"工业"
 - 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
+- **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 qwen2.5vl:7b 截图 OCR，复杂公式偶发结构错）
 - **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格
 - **断页表格识别（待修）**：当前跨页表格被拆成两个 chunk，下页部分可能丢表头、行列错位，需支持跨页合并识别
 - **表格语义化表示**：把表格转"键值句"（`状态码500：错误详情为…`）进向量，缓解数字/符号检索弱项（当前 MD 表格对数字类提问命中一般）

@@ -22,6 +22,7 @@ type Chunk struct {
 	ID         string    `json:"id"`
 	DocumentID string    `json:"document_id"`
 	Filename   string    `json:"filename"`
+	UserID     string    `json:"user_id,omitempty"` // 归属用户，用于检索过滤
 	Page       int       `json:"page"` // 来源页码，便于引用定位
 	Index      int       `json:"index"`
 	Content    string    `json:"content"`

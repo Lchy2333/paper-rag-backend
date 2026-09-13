@@ -160,6 +160,91 @@ func TestPostgresStore(t *testing.T) {
 		t.Fatalf("检索他人 user 应返回空, got %d", len(others))
 	}
 
+	// 4.4 混合检索：字面匹配能命中向量检索不到的公式类 chunk。
+	// 插入一个含公式文本的 chunk（向量与查询无关），用 QueryText 做字面检索应命中。
+	formulaID := chunkIDs[0] + "-f"
+	formulaChunk := model.Chunk{
+		ID: formulaID, DocumentID: docID, Filename: "integration-test.pdf",
+		Page: 1, Index: 100, Content: "V=0.5πtf'Dcotθ 钢管受剪承载力公式",
+		Vector: make([]float32, 1024), CreatedAt: time.Now(),
+	}
+	if err := s.AddChunks(ctx, []model.Chunk{formulaChunk}); err != nil {
+		t.Fatalf("AddChunks(公式 chunk) 失败: %v", err)
+	}
+
+	// 纯向量检索：查询向量指向维度 1，公式 chunk 向量在维度 999，不应被命中
+	vecOnly, err := s.Search(ctx, query, 5, 0, store.SearchOptions{})
+	if err != nil {
+		t.Fatalf("纯向量 Search 失败: %v", err)
+	}
+	if containsChunk(vecOnly, formulaID) {
+		t.Fatalf("纯向量检索不应命中公式 chunk（向量距离远）")
+	}
+
+	// 混合检索：QueryText 含 "cotθ"，字面路应命中公式 chunk
+	hybrid, err := s.Search(ctx, query, 5, 0, store.SearchOptions{
+		UseHybrid: true,
+		QueryText: "cotθ 钢管受剪承载力公式",
+	})
+	if err != nil {
+		t.Fatalf("混合 Search 失败: %v", err)
+	}
+	if !containsChunk(hybrid, formulaID) {
+		t.Fatalf("混合检索应命中公式 chunk（字面匹配 cotθ）: %+v", hybrid)
+	}
+
+	// 4.5 混合检索的归属过滤：全文路/字面路也应遵守 user_id / document_id。
+	// 在另一个用户的文档里插入含相同独特词的 chunk，验证 local 用户检索不到它。
+	otherDocID := "other-" + itoa(ts)
+	otherChunk := model.Chunk{
+		ID: otherDocID + "-c", DocumentID: otherDocID, Filename: "other.pdf",
+		Page: 1, Index: 0, Content: "zzzunique 钢管约束钢筋混凝土柱受剪承载力计算",
+		Vector: testVector1024(500), CreatedAt: time.Now(),
+	}
+	otherDoc := &model.Document{
+		ID: otherDocID, UserID: "another-user", Filename: "other.pdf",
+		Title: "他人文档", PageCount: 1, SizeBytes: 10,
+		Status: "ready", ContentHash: "hash-" + otherDocID, CreatedAt: time.Now(),
+	}
+	if err := s.SaveDocument(ctx, otherDoc); err != nil {
+		t.Fatalf("SaveDocument(他人) 失败: %v", err)
+	}
+	if err := s.AddChunks(ctx, []model.Chunk{otherChunk}); err != nil {
+		t.Fatalf("AddChunks(他人) 失败: %v", err)
+	}
+	defer s.DeleteDocument(ctx, otherDocID)
+
+	// local 用户的混合检索（含全文路+字面路）不应返回他人的 chunk
+	filteredHybrid, err := s.Search(ctx, testVector1024(0), 5, 0, store.SearchOptions{
+		UserID:    "local",
+		UseHybrid: true,
+		QueryText: "钢管约束钢筋混凝土柱受剪承载力",
+	})
+	if err != nil {
+		t.Fatalf("混合检索(过滤 user) 失败: %v", err)
+	}
+	if containsChunk(filteredHybrid, otherChunk.ID) {
+		t.Fatalf("混合检索泄漏了其他用户的 chunk（user_id 过滤未生效）")
+	}
+
+	// 指定文档范围的混合检索：限定 docID 后不应返回其他文档的 chunk
+	docFiltered, err := s.Search(ctx, testVector1024(0), 5, 0, store.SearchOptions{
+		UserID:    "local",
+		DocIDs:    []string{docID},
+		UseHybrid: true,
+		QueryText: "钢管约束钢筋混凝土柱受剪承载力",
+	})
+	if err != nil {
+		t.Fatalf("混合检索(过滤 doc) 失败: %v", err)
+	}
+	for _, r := range docFiltered {
+		if r.Chunk.DocumentID != docID {
+			t.Fatalf("混合检索泄漏了其他文档的 chunk: %s", r.Chunk.DocumentID)
+		}
+	}
+
+	// 清理公式 chunk（随文档删除级联清理）
+
 	// 5. 列表
 	docs, err := s.ListDocuments(ctx)
 	if err != nil {
@@ -229,6 +314,16 @@ func testVector1024(pos int) []float32 {
 
 func cleanupPostgres(ctx context.Context, s store.Store, docID string) {
 	_ = s.DeleteDocument(ctx, docID)
+}
+
+// containsChunk 判断检索结果是否包含指定 chunk ID。
+func containsChunk(results []store.SearchResult, chunkID string) bool {
+	for _, r := range results {
+		if r.Chunk.ID == chunkID {
+			return true
+		}
+	}
+	return false
 }
 
 func itoa(n int64) string {

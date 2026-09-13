@@ -36,9 +36,19 @@ CREATE TABLE IF NOT EXISTS chunks (
     idx         INTEGER NOT NULL,
     content     TEXT NOT NULL,
     embedding   VECTOR(1024),
+    -- 中文分词 tsvector：Go 侧 gojieba 分词后经 to_tsvector('simple') 生成，
+    -- 供 BM25 风格全文检索（绕开 PostgreSQL 无中文分词器的问题）
+    tsv         tsvector,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- 4. 向量检索索引（HNSW + 余弦相似度）
 --    注意: 若 embedding 模型维度不是 1536，请先调整 chunks.embedding 的维度
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks USING hnsw (embedding vector_cosine_ops);
+
+-- 4.1 文档过滤索引：两阶段检索的"补漏"阶段按 document_id 走 B-tree 精确取回，
+--     避免 HNSW 粗筛在过滤条件下扫不到足够候选。也加速文档删除的级联清理。
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
+
+-- 4.2 全文检索索引：tsvector GIN（BM25 风格全文检索）
+CREATE INDEX IF NOT EXISTS idx_chunks_tsv ON chunks USING gin (tsv);

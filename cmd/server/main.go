@@ -15,6 +15,7 @@ import (
 	"paper-rag-backend/internal/ai"
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/httpapi"
+	"paper-rag-backend/internal/render"
 	"paper-rag-backend/internal/service"
 	"paper-rag-backend/internal/store"
 )
@@ -38,7 +39,12 @@ func main() {
 
 	// 组件装配
 	aiClient := ai.NewClient(cfg.AI)
-	ingestSvc := service.NewIngestService(aiClient, storeImpl, cfg.Server, cfg.RAG)
+	renderCfg := render.Config{
+		PythonCmd: cfg.Render.PythonCmd,
+		DPI:       cfg.Render.DPI,
+		WorkDir:   cfg.Render.WorkDir,
+	}
+	ingestSvc := service.NewIngestService(aiClient, storeImpl, cfg.Server, cfg.RAG, renderCfg)
 	askSvc := service.NewAskService(aiClient, storeImpl, cfg.RAG)
 	handler := httpapi.NewHandler(ingestSvc, askSvc, cfg.Server.MaxUploadSizeMB)
 	router := httpapi.NewRouter(handler)

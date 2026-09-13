@@ -44,6 +44,16 @@ ai:
     temperature: 0.2
     max_tokens: 2048
 
+  formula:
+    # 公式 OCR：把公式裁剪图识别成 LaTeX，用多模态视觉模型。
+    # base_url / api_key 为空则回退到 ai.base_url / ai.api_key。
+    # 例：Ollama 本地视觉模型（需 ollama pull qwen2.5vl:7b）：
+    base_url: "http://localhost:11434/v1"
+    api_key: "ollama"
+    model: "qwen2.5vl:7b"
+    temperature: 0.1
+    max_tokens: 1024
+
 rag:
   chunk_size: 800
   chunk_overlap: 150
@@ -62,3 +72,10 @@ database:
   dbname: "paper_rag"
   sslmode: "disable"
   max_conns: 10
+
+render:
+  # PDF 渲染（公式区域截图）：用 PyMuPDF（MuPDF 的 Python 绑定）
+  # 安装: pip install pymupdf
+  python_cmd: "python"          # Python 可执行文件，默认 python
+  dpi: 150                      # 渲染分辨率，公式截图建议 150
+  work_dir: ""                  # 渲染临时文件目录，留空用系统临时目录
