@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -11,6 +13,7 @@ import (
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 
 	"paper-rag-backend/internal/model"
+	"paper-rag-backend/internal/segment"
 )
 
 // PostgresStore 是基于 PostgreSQL + pgvector 的 Store 实现，
@@ -137,7 +140,9 @@ func (s *PostgresStore) DeleteDocument(ctx context.Context, id string) error {
 
 // ---- 向量 ----
 
-// AddChunks 批量写入分块（含向量）。使用事务保证要么全部成功要么全部回滚。
+// AddChunks 批量写入分块（含向量与分词 tsvector）。使用事务保证要么全部成功要么全部回滚。
+// tsv 由 Go 侧 gojieba 分词后经 to_tsvector('simple') 生成（simple 配置不分词，
+// 保留已分好的词；中文分词在应用层完成，绕开 PostgreSQL 无中文分词器的问题）。
 func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) error {
 	if len(chunks) == 0 {
 		return nil
@@ -150,11 +155,12 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 	defer tx.Rollback(ctx)
 
 	for _, c := range chunks {
+		tokens := segment.ToSearchString(c.Content)
 		_, err := tx.Exec(ctx, `
-			INSERT INTO chunks (id, document_id, page, idx, content, embedding, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			INSERT INTO chunks (id, document_id, page, idx, content, embedding, tsv, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, to_tsvector('simple', $7), $8)`,
 			c.ID, c.DocumentID, c.Page, c.Index, c.Content,
-			pgvector.NewVector(c.Vector), c.CreatedAt,
+			pgvector.NewVector(c.Vector), tokens, c.CreatedAt,
 		)
 		if err != nil {
 			return fmt.Errorf("写入分块失败: %w", err)
@@ -166,60 +172,419 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 	return nil
 }
 
-// Search 用余弦相似度检索最相近的 topK 个片段，并按 threshold 过滤。
-// opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
-// 通过 JOIN documents 带回文件名用于引用展示。
+// Search 返回与 query 最相似的 topK 个片段。
+//
+// 默认走两阶段向量检索：
+//
+//	阶段一（粗筛）：开启 pgvector iterative_scan（relaxed_order），LIMIT 放宽到
+//	                max(topK*coarseFactor, coarseMin)，不带过滤条件，纯向量排序多捞候选。
+//	                目的是让 HNSW 尽量扫到更多节点，避免过滤条件下候选不足。
+//	阶段二（精筛+补漏）：应用层按 opts（DocIDs/UserID）过滤粗筛结果；若过滤后不足
+//	                topK，用合规 DocIDs 走 document_id B-tree 索引精确取回补齐。
+//
+// 若 opts.UseHybrid=true，额外走字面检索（trigram 子串匹配，对 QueryText 拆词），
+// 两路结果用 RRF（倒数排名融合）合并——解决公式/编号/专名这类字面精确匹配场景
+// （embedding 擅长主题语义、不擅长符号精确匹配，见 避坑指南 #7）。
+//
+// 返回结果去重（document_id+page+idx）、截断 topK、并按 threshold 过滤。
 func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error) {
 	if topK <= 0 {
 		topK = 5
 	}
 
-	sql := `
-		SELECT c.id, c.document_id, d.filename, c.page, c.idx, c.content, c.created_at,
+	// 向量路
+	vectorResults, err := s.searchVector(ctx, query, topK, threshold, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// 非混合：直接返回向量结果
+	if !opts.UseHybrid || strings.TrimSpace(opts.QueryText) == "" {
+		return vectorResults, nil
+	}
+
+	// 混合：向量路 + tsvector 全文路（主力，真 BM25 风格）+ pg_trgm 字面路（补充公式/符号）→ RRF 合并
+	tsvResults, err := s.searchTsvector(ctx, opts.QueryText, topK, opts)
+	if err != nil {
+		// 全文路失败不阻塞：降级到 pg_trgm 字面路
+		tsvResults = nil
+	}
+
+	lexResults, err := s.searchLexical(ctx, opts.QueryText, topK, opts)
+	if err != nil {
+		lexResults = nil
+	}
+
+	merged := rrfMerge(vectorResults, tsvResults, topK, threshold)
+	merged = rrfMerge(merged, lexResults, topK, threshold)
+	return merged, nil
+}
+
+// searchVector 实现两阶段向量检索（粗筛 + 精筛 + 补漏）。
+func (s *PostgresStore) searchVector(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error) {
+	// ---- 阶段一：粗筛（放宽 LIMIT + iterative_scan，不带过滤条件） ----
+	const coarseFactor = 20
+	const coarseMin = 100
+	coarseLimit := topK * coarseFactor
+	if coarseLimit < coarseMin {
+		coarseLimit = coarseMin
+	}
+
+	// iterative_scan 是会话级参数，pgxpool 需要独占连接来设置。
+	conn, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取连接失败: %w", err)
+	}
+	defer conn.Release()
+
+	// pgvector 0.8+：relaxed_order 允许 HNSW 在过滤/放宽场景下返回未精确排序的
+	// 近似结果，从而在同样的 ef_search 下扫描更多节点（提高召回）。粗筛不过滤，
+	// 该设置仍有助于在 LIMIT 较大时尽快返回足够多的近邻。
+	if _, err := conn.Exec(ctx, "SET hnsw.iterative_scan = relaxed_order"); err != nil {
+		return nil, fmt.Errorf("设置 iterative_scan 失败: %w", err)
+	}
+
+	coarseSQL := `
+		SELECT c.id, c.document_id, d.filename, d.user_id, c.page, c.idx, c.content, c.created_at,
 			   1 - (c.embedding <=> $1) AS similarity
 		FROM chunks c
-		JOIN documents d ON c.document_id = d.id`
-	args := []any{pgvector.NewVector(query)}
-	limitPos := 2
-	conds := make([]string, 0, 2)
-	if len(opts.DocIDs) > 0 {
-		conds = append(conds, fmt.Sprintf("c.document_id = ANY($%d)", limitPos))
-		args = append(args, opts.DocIDs)
-		limitPos++
-	}
-	if opts.UserID != "" {
-		conds = append(conds, fmt.Sprintf("d.user_id = $%d", limitPos))
-		args = append(args, opts.UserID)
-		limitPos++
-	}
-	if len(conds) > 0 {
-		sql += " WHERE " + strings.Join(conds, " AND ")
-	}
-	sql += fmt.Sprintf(`
+		JOIN documents d ON c.document_id = d.id
 		ORDER BY c.embedding <=> $1
-		LIMIT $%d`, limitPos)
-	args = append(args, topK)
+		LIMIT $2`
+	coarse, err := queryChunks(ctx, conn, coarseSQL, pgvector.NewVector(query), coarseLimit)
+	if err != nil {
+		return nil, fmt.Errorf("粗筛检索失败: %w", err)
+	}
+
+	// ---- 阶段二：应用层精筛 ----
+	filtered := make([]SearchResult, 0, len(coarse))
+	seen := make(map[string]struct{}, len(coarse))
+	for _, r := range coarse {
+		if !matchOptions(r.Chunk, opts) {
+			continue
+		}
+		key := chunkKey(r.Chunk)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		filtered = append(filtered, r)
+		if len(filtered) >= topK {
+			break
+		}
+	}
+
+	// ---- 补漏：精筛不足 topK 时，用合规 DocIDs 精确取回 ----
+	if len(filtered) < topK && len(opts.DocIDs) > 0 {
+		docIDs := opts.DocIDs
+		// 若已限定 UserID，过滤出属于该用户的合规文档（一次查询避免 N+1）
+		if opts.UserID != "" {
+			docIDs = s.filterDocsByUser(ctx, conn, docIDs, opts.UserID)
+		}
+		if len(docIDs) > 0 {
+			fillSQL := `
+				SELECT c.id, c.document_id, d.filename, d.user_id, c.page, c.idx, c.content, c.created_at,
+					   1 - (c.embedding <=> $1) AS similarity
+				FROM chunks c
+				JOIN documents d ON c.document_id = d.id
+				WHERE c.document_id = ANY($2)
+				ORDER BY c.embedding <=> $1
+				LIMIT $3`
+			fill, err := queryChunks(ctx, conn, fillSQL, pgvector.NewVector(query), docIDs, topK)
+			if err != nil {
+				return nil, fmt.Errorf("补漏检索失败: %w", err)
+			}
+			for _, r := range fill {
+				key := chunkKey(r.Chunk)
+				if _, dup := seen[key]; dup {
+					continue
+				}
+				seen[key] = struct{}{}
+				filtered = append(filtered, r)
+				if len(filtered) >= topK {
+					break
+				}
+			}
+		}
+	}
+
+	// ---- 排序 + threshold 过滤 ----
+	results := make([]SearchResult, 0, len(filtered))
+	for _, r := range filtered {
+		if r.Score < threshold {
+			continue
+		}
+		results = append(results, r)
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+	if len(results) > topK {
+		results = results[:topK]
+	}
+	return results, nil
+}
+
+// searchLexical 对查询文本拆词，用 trigram 子串匹配检索 content 含这些词的 chunk。
+// 用 pg_trgm 的 similarity() 排序：既过滤（% 匹配）又按字面相似度排名。
+// 按 opts 应用 user_id / document_id 过滤（与向量路一致）。
+func (s *PostgresStore) searchLexical(ctx context.Context, queryText string, topK int, opts SearchOptions) ([]SearchResult, error) {
+	terms := lexTerms(queryText)
+	if len(terms) == 0 {
+		return nil, nil
+	}
+
+	// 用整句查询做 similarity 排序（pg_trgm 支持，走 GIN 索引），
+	// 同时用拆出的词做 ILIKE 过滤，兼顾召回与排序。
+	// 多个词之间用 OR（词越多召回越大），归属过滤用 AND 追加。
+	var cond []string
+	args := []any{}
+	termConds := make([]string, 0, len(terms))
+	for i, t := range terms {
+		termConds = append(termConds, fmt.Sprintf("c.content ILIKE $%d", i+1))
+		args = append(args, "%"+t+"%")
+	}
+	if len(termConds) > 0 {
+		cond = append(cond, "("+strings.Join(termConds, " OR ")+")")
+	}
+
+	// 归属过滤（user_id / document_id），用 AND 追加在词条件之后
+	filterClause, filterArgs := buildFilterClause(opts)
+	if filterClause != "" {
+		cond = append(cond, filterClause)
+		args = append(args, filterArgs...)
+	}
+	simPos := len(args) + 1
+	limitPos := simPos + 1
+	args = append(args, queryText, topK*5)
+
+	sql := `
+		SELECT c.id, c.document_id, d.filename, d.user_id, c.page, c.idx, c.content, c.created_at,
+			   similarity(c.content, $` + itoa(simPos) + `) AS similarity
+		FROM chunks c
+		JOIN documents d ON c.document_id = d.id
+		WHERE ` + strings.Join(cond, " AND ") + `
+		ORDER BY similarity DESC
+		LIMIT $` + itoa(limitPos)
 
 	rows, err := s.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, fmt.Errorf("向量检索失败: %w", err)
+		return nil, fmt.Errorf("字面检索失败: %w", err)
 	}
 	defer rows.Close()
 
-	results := make([]SearchResult, 0, topK)
+	var out []SearchResult
 	for rows.Next() {
 		var c model.Chunk
 		var score float32
-		if err := rows.Scan(&c.ID, &c.DocumentID, &c.Filename, &c.Page, &c.Index,
+		if err := rows.Scan(&c.ID, &c.DocumentID, &c.Filename, &c.UserID, &c.Page, &c.Index,
 			&c.Content, &c.CreatedAt, &score); err != nil {
-			return nil, fmt.Errorf("读取检索结果失败: %w", err)
+			return nil, err
 		}
-		if score < threshold {
+		out = append(out, SearchResult{Chunk: c, Score: score})
+	}
+	return out, rows.Err()
+}
+
+// searchTsvector 用 tsvector 全文检索（主力，真 BM25 风格排序）。
+//
+// 分词在 Go 侧完成（gojieba，见 internal/segment），查询文本分词后拼成
+// 空格分隔串，用 websearch_to_tsquery('simple', $q) 构造查询——simple 配置
+// 不额外分词，直接使用传入的词；空格在 websearch 语法里表示 AND。
+// 排序用 ts_rank（词频+逆文档频率+长度归一，类 BM25）。
+//
+// 用 ts_rank 的两个权重参数（默认 A/B/C/D = 0.1/0.2/0.4/1.0），
+// 命中标题/正文的权重可后续按需调整。
+func (s *PostgresStore) searchTsvector(ctx context.Context, queryText string, topK int, opts SearchOptions) ([]SearchResult, error) {
+	tokens := segment.ToSearchString(queryText)
+	if strings.TrimSpace(tokens) == "" {
+		return nil, nil
+	}
+
+	// 公式/专名整串保留 + 中文分词词，用 AND 组合保证精确（websearch 空格=AND）
+	// 若 AND 无结果可降级 OR，v1 先用 AND + 加大召回 LIMIT。
+	query := strings.ReplaceAll(tokens, " ", " & ")
+	tsq := fmt.Sprintf("to_tsquery('simple', %q)", query)
+
+	// 归属过滤（user_id / document_id）
+	filterClause, filterArgs := buildFilterClause(opts)
+	where := "c.tsv @@ " + tsq
+	if filterClause != "" {
+		where += " AND " + filterClause
+	}
+	limitPos := len(filterArgs) + 1
+	args := append(filterArgs, topK*5)
+
+	sql := `
+		SELECT c.id, c.document_id, d.filename, d.user_id, c.page, c.idx, c.content, c.created_at,
+			   ts_rank(c.tsv, ` + tsq + `) AS similarity
+		FROM chunks c
+		JOIN documents d ON c.document_id = d.id
+		WHERE ` + where + `
+		ORDER BY similarity DESC
+		LIMIT $` + itoa(limitPos)
+
+	rows, err := s.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("全文检索失败: %w", err)
+	}
+	defer rows.Close()
+
+	var out []SearchResult
+	for rows.Next() {
+		var c model.Chunk
+		var score float32
+		if err := rows.Scan(&c.ID, &c.DocumentID, &c.Filename, &c.UserID, &c.Page, &c.Index,
+			&c.Content, &c.CreatedAt, &score); err != nil {
+			return nil, err
+		}
+		out = append(out, SearchResult{Chunk: c, Score: score})
+	}
+	return out, rows.Err()
+}
+//
+//	score(chunk) = Σ_{列表} 1 / (k + rank)，k 为常数（默认 60）。
+//
+// 两条路都命中的 chunk 排名靠前；单路命中的按排名贡献。合并后按 score 降序、
+// 去重、截断 topK，并按 threshold 过滤（RRF 分数为加和，threshold 通常传 0）。
+func rrfMerge(vector, lexical []SearchResult, topK int, threshold float32) []SearchResult {
+	const k = 60.0
+	scores := make(map[string]float64)
+	chunks := make(map[string]model.Chunk)
+
+	rankScore := func(list []SearchResult) {
+		for i, r := range list {
+			key := chunkKey(r.Chunk)
+			scores[key] += 1.0 / (k + float64(i+1))
+			if _, ok := chunks[key]; !ok {
+				chunks[key] = r.Chunk
+			}
+		}
+	}
+	rankScore(vector)
+	rankScore(lexical)
+
+	type scored struct {
+		key   string
+		score float64
+	}
+	all := make([]scored, 0, len(scores))
+	for key, sc := range scores {
+		all = append(all, scored{key, sc})
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].score > all[j].score })
+
+	out := make([]SearchResult, 0, topK)
+	for _, item := range all {
+		if float32(item.score) < threshold {
 			continue
 		}
-		results = append(results, SearchResult{Chunk: c, Score: score})
+		out = append(out, SearchResult{Chunk: chunks[item.key], Score: float32(item.score)})
+		if len(out) >= topK {
+			break
+		}
 	}
-	return results, rows.Err()
+	return out
+}
+
+// lexTerms 把查询文本拆成检索词：按空白/标点拆分，过滤过短/纯符号词。
+// 公式类查询（如 "V=0.5πtf'Dcotθ"）整串保留为一个词，便于字面精确匹配。
+func lexTerms(query string) []string {
+	fields := strings.FieldsFunc(query, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '，' || r == '。' || r == '？' ||
+			r == '！' || r == '；' || r == '、' || r == '"' || r == '“' || r == '”'
+	})
+	var out []string
+	for _, f := range fields {
+		f = strings.TrimSpace(f)
+		if len([]rune(f)) < 2 {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// chunkKey 返回 chunk 去重键（document_id + page + idx）。
+func chunkKey(c model.Chunk) string {
+	return fmt.Sprintf("%s:%d:%d", c.DocumentID, c.Page, c.Index)
+}
+
+func itoa(n int) string {
+	return strconv.Itoa(n)
+}
+
+// matchOptions 判断 chunk 是否满足检索过滤条件。
+func matchOptions(c model.Chunk, opts SearchOptions) bool {
+	if opts.UserID != "" && c.UserID != opts.UserID {
+		return false
+	}
+	if len(opts.DocIDs) > 0 {
+		ok := false
+		for _, id := range opts.DocIDs {
+			if c.DocumentID == id {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// filterDocsByUser 从 docIDs 中过滤出属于指定用户的文档。
+func (s *PostgresStore) filterDocsByUser(ctx context.Context, conn *pgxpool.Conn, docIDs []string, userID string) []string {
+	rows, err := conn.Query(ctx, `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2`, docIDs, userID)
+	if err != nil {
+		return docIDs // 查询失败时退回不过滤，交给上层兜底
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return docIDs
+		}
+		out = append(out, id)
+	}
+	return out
+}
+
+// buildFilterClause 生成检索过滤条件（user_id / document_id）。
+// 返回 SQL 片段（不含 WHERE 关键字）与对应参数，供全文路/字面路复用，
+// 保证和向量路一致地遵守用户归属与文档范围。
+func buildFilterClause(opts SearchOptions) (string, []any) {
+	var conds []string
+	var args []any
+	if opts.UserID != "" {
+		args = append(args, opts.UserID)
+		conds = append(conds, fmt.Sprintf("d.user_id = $%d", len(args)))
+	}
+	if len(opts.DocIDs) > 0 {
+		args = append(args, opts.DocIDs)
+		conds = append(conds, fmt.Sprintf("c.document_id = ANY($%d)", len(args)))
+	}
+	return strings.Join(conds, " AND "), args
+}
+
+// queryChunks 执行一段 chunk 检索 SQL（统一扫描结果行）。
+func queryChunks(ctx context.Context, conn *pgxpool.Conn, sql string, args ...any) ([]SearchResult, error) {
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SearchResult
+	for rows.Next() {
+		var c model.Chunk
+		var score float32
+		if err := rows.Scan(&c.ID, &c.DocumentID, &c.Filename, &c.UserID, &c.Page, &c.Index,
+			&c.Content, &c.CreatedAt, &score); err != nil {
+			return nil, err
+		}
+		out = append(out, SearchResult{Chunk: c, Score: score})
+	}
+	return out, rows.Err()
 }
 
 var _ Store = (*PostgresStore)(nil)

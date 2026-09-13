@@ -16,6 +16,7 @@ type Config struct {
 	AI       AIConfig       `yaml:"ai"`
 	RAG      RAGConfig      `yaml:"rag"`
 	Database DatabaseConfig `yaml:"database"`
+	Render   RenderConfig   `yaml:"render"`
 }
 
 type ServerConfig struct {
@@ -34,6 +35,7 @@ type AIConfig struct {
 	TimeoutSec int             `yaml:"timeout_sec"`
 	Embedding  EmbeddingConfig `yaml:"embedding"`
 	Chat       ChatConfig      `yaml:"chat"`
+	Formula    FormulaConfig   `yaml:"formula"`
 }
 
 type EmbeddingConfig struct {
@@ -45,6 +47,16 @@ type EmbeddingConfig struct {
 }
 
 type ChatConfig struct {
+	Model       string  `yaml:"model"`
+	Temperature float32 `yaml:"temperature"`
+	MaxTokens   int     `yaml:"max_tokens"`
+	BaseURL     string  `yaml:"base_url"` // 可选，为空则回退到 ai.base_url
+	APIKey      string  `yaml:"api_key"`  // 可选，为空则回退到 ai.api_key
+}
+
+// FormulaConfig 是公式 OCR（图片 → LaTeX）配置。
+// 使用多模态模型（如 Ollama 的 qwen2.5vl:7b），base_url / api_key 为空时回退到 ai.base_url / ai.api_key。
+type FormulaConfig struct {
 	Model       string  `yaml:"model"`
 	Temperature float32 `yaml:"temperature"`
 	MaxTokens   int     `yaml:"max_tokens"`
@@ -72,6 +84,18 @@ type DatabaseConfig struct {
 	SSLMode  string `yaml:"sslmode"`
 	// MaxConns 连接池最大连接数，0 表示使用 pgx 默认值
 	MaxConns int `yaml:"max_conns"`
+}
+
+// RenderConfig 是 PDF 渲染（公式区域截图）配置。
+// 渲染用 PyMuPDF（pip install pymupdf），底层是 MuPDF 内核，
+// 公式 OCR 需要把 PDF 页面渲染成图片后裁剪出公式区域。
+type RenderConfig struct {
+	// PythonCmd Python 可执行文件；为空默认 "python"。
+	PythonCmd string `yaml:"python_cmd"`
+	// DPI 渲染分辨率，公式截图建议 150（太小字糊、太大慢）
+	DPI int `yaml:"dpi"`
+	// WorkDir 渲染临时文件目录，为空用系统临时目录
+	WorkDir string `yaml:"work_dir"`
 }
 
 // DSN 生成 pgx 连接字符串（键值对格式，密码含特殊字符也能安全处理）。
@@ -162,11 +186,17 @@ func (c *Config) applyDefaults() {
 	if c.AI.Chat.MaxTokens == 0 {
 		c.AI.Chat.MaxTokens = 2048
 	}
+	if c.AI.Formula.MaxTokens == 0 {
+		c.AI.Formula.MaxTokens = 1024
+	}
 	if c.RAG.ChunkSize == 0 {
 		c.RAG.ChunkSize = 800
 	}
 	if c.RAG.TopK == 0 {
 		c.RAG.TopK = 5
+	}
+	if c.Render.DPI == 0 {
+		c.Render.DPI = 150
 	}
 }
 

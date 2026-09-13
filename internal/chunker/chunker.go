@@ -11,6 +11,11 @@ import (
 type Chunk struct {
 	Page    int
 	Content string
+	// Formula 标记该 chunk 来自公式块（内容为扁平文本，待还原 LaTeX）。
+	// 由服务层决定是否调用公式还原。
+	Formula bool
+	// 公式块 PDF 坐标（Y 向上），用于渲染截图 OCR。仅 Formula==true 时有意义。
+	Left, Right, Top, Bot float64
 }
 
 // ChunkConfig 控制切分参数。
@@ -32,9 +37,23 @@ func SplitBlocks(pages [][]parser.Block, cfg ChunkConfig) []Chunk {
 	var chunks []Chunk
 	for pi, blocks := range pages {
 		for _, b := range blocks {
-			if b.Kind == parser.BlockTable {
+			switch b.Kind {
+			case parser.BlockTable:
 				chunks = append(chunks, splitTable(b.Content, cfg, pi+1)...)
-			} else {
+			case parser.BlockFormula:
+				// 公式块自包含，整块成一个 chunk，不与其他文本混切
+				if s := strings.TrimSpace(b.Content); s != "" {
+					chunks = append(chunks, Chunk{
+						Page:    pi + 1,
+						Content: s,
+						Formula: true,
+						Left:    b.Left,
+						Right:   b.Right,
+						Top:     b.Top,
+						Bot:     b.Bot,
+					})
+				}
+			default:
 				chunks = append(chunks, splitText(b.Content, cfg, pi+1)...)
 			}
 		}

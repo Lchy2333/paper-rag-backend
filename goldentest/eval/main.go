@@ -54,6 +54,7 @@ import (
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/model"
 	"paper-rag-backend/internal/parser"
+	"paper-rag-backend/internal/render"
 	"paper-rag-backend/internal/service"
 	"paper-rag-backend/internal/store"
 )
@@ -419,7 +420,11 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 	}
 	defer pg.Close()
 
-	ingest := service.NewIngestService(aiClient, pg, cfg.Server, cfg.RAG)
+	ingest := service.NewIngestService(aiClient, pg, cfg.Server, cfg.RAG, render.Config{
+		PythonCmd: cfg.Render.PythonCmd,
+		DPI:       cfg.Render.DPI,
+		WorkDir:   cfg.Render.WorkDir,
+	})
 
 	out := &IngestResult{
 		Database:    cfg.Database.DBName,

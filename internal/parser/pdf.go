@@ -18,12 +18,18 @@ const (
 	BlockText BlockKind = iota
 	// BlockTable 是表格块，Content 为 Markdown 表格文本。
 	BlockTable
+	// BlockFormula 是公式块，Content 为扁平文本（行间用 \n 分隔），
+	// 后续由服务层交给公式 OCR 还原成 LaTeX。
+	BlockFormula
 )
 
-// Block 是页面内容的一个有序块：普通文本或表格（Markdown）。
+// Block 是页面内容的一个有序块：普通文本、表格（Markdown）或公式（扁平文本）。
+// 公式块额外携带 PDF 坐标边界（用于后续渲染截图 OCR）；其他块类型这些字段为 0。
 type Block struct {
 	Kind    BlockKind
 	Content string
+	// 公式块坐标（PDF 点，Y 向上）。仅 Kind==BlockFormula 时有意义。
+	Left, Right, Top, Bot float64
 }
 
 // ParsedDocument 是 PDF 解析后的结果，按页保留文本与块流。
@@ -77,8 +83,9 @@ func pageTextFromBlocks(blocks []Block) string {
 	return normalizeText(sb.String())
 }
 
-// pageBlocks 提取页面的有序块流：普通文本块 + 表格块（Markdown）。
-// 块按版面顺序排列（从上到下），表格块整体独立，不与其他文本混排。
+// pageBlocks 提取页面的有序块流：普通文本块 + 表格块（Markdown）+ 公式块（扁平文本）。
+// 块按版面顺序排列（从上到下），表格块与公式块整体独立，不与其他文本混排。
+// 优先级：表格 > 公式 > 普通文本（同一区域的字形先归表格，再归公式）。
 func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -89,7 +96,8 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 
 	content := p.Content()
 	tables := detectTables(content)
-	if len(tables) == 0 {
+	formulas := DetectFormulas(content)
+	if len(tables) == 0 && len(formulas) == 0 {
 		text, err := pageText(p)
 		if err != nil {
 			return nil, err
@@ -97,12 +105,25 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 		return []Block{{Kind: BlockText, Content: text}}, nil
 	}
 
-	texts := content.Text
-	sort.Slice(texts, func(i, j int) bool {
-		if texts[i].Y != texts[j].Y {
-			return texts[i].Y > texts[j].Y
+	// 公式区域字形 -> 公式下标（原文下标，与 content.Text 一致）
+	formulaOfIdx := make(map[int]int, len(formulas))
+	for fi, f := range formulas {
+		for _, idx := range f.Idx {
+			formulaOfIdx[idx] = fi
 		}
-		return texts[i].X < texts[j].X
+	}
+
+	// 排序遍历：保留原始下标，公式剔除用原始下标判断
+	order := make([]int, len(content.Text))
+	for i := range order {
+		order[i] = i
+	}
+	sort.Slice(order, func(i, j int) bool {
+		ti, tj := content.Text[order[i]], content.Text[order[j]]
+		if ti.Y != tj.Y {
+			return ti.Y > tj.Y
+		}
+		return ti.X < tj.X
 	})
 
 	var textBuf strings.Builder
@@ -113,9 +134,11 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 		textBuf.Reset()
 	}
 
-	rendered := make([]bool, len(tables))
+	tableRendered := make([]bool, len(tables))
+	formulaRendered := make([]bool, len(formulas))
 	lastY := 0.0
-	for i, t := range texts {
+	for pos, idx := range order {
+		t := content.Text[idx]
 		ti := -1
 		for k := range tables {
 			if t.Y >= tables[k].bot-1 && t.Y <= tables[k].top+1 {
@@ -124,15 +147,32 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 			}
 		}
 		if ti >= 0 {
-			if !rendered[ti] {
+			if !tableRendered[ti] {
 				flushText()
 				blocks = append(blocks, Block{Kind: BlockTable, Content: tables[ti].md})
-				rendered[ti] = true
+				tableRendered[ti] = true
 			}
 			lastY = t.Y
 			continue
 		}
-		if i > 0 && t.Y < lastY-2.0 {
+		if fi, ok := formulaOfIdx[idx]; ok {
+			if !formulaRendered[fi] {
+				flushText()
+				f := formulas[fi]
+				blocks = append(blocks, Block{
+					Kind:    BlockFormula,
+					Content: f.Text,
+					Left:    f.Left,
+					Right:   f.Right,
+					Top:     f.Top,
+					Bot:     f.Bot,
+				})
+				formulaRendered[fi] = true
+			}
+			lastY = t.Y
+			continue
+		}
+		if pos > 0 && t.Y < lastY-2.0 {
 			textBuf.WriteByte('\n')
 		}
 		lastY = t.Y
