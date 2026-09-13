@@ -458,7 +458,7 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 			return nil, fmt.Errorf("打开 %s: %w", f, err)
 		}
 		st, _ := fh.Stat()
-		doc, err := ingest.Process(ctx, fh, st.Size(), filepath.Base(f))
+		doc, err := ingest.Process(ctx, fh, st.Size(), filepath.Base(f), nil)
 		fh.Close()
 		item := IngestFileResult{Filename: filepath.Base(f)}
 		if err != nil {

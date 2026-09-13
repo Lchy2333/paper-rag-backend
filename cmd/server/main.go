@@ -15,6 +15,7 @@ import (
 	"paper-rag-backend/internal/ai"
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/httpapi"
+	"paper-rag-backend/internal/logger"
 	"paper-rag-backend/internal/render"
 	"paper-rag-backend/internal/service"
 	"paper-rag-backend/internal/store"
@@ -26,12 +27,17 @@ func main() {
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		log.Fatalf("load config failed: %v", err)
 	}
+
+	// 日志级别在配置加载完成后立即生效（加载阶段的错误仍走标准库 log）
+	logger.Init(cfg.Log.Level)
+	logger.Info("config loaded", "path", *configPath, "log_level", cfg.Log.Level)
 
 	storeImpl, err := buildStore(cfg)
 	if err != nil {
-		log.Fatalf("初始化存储失败: %v", err)
+		logger.Error("failed to init store", "err", err)
+		os.Exit(1)
 	}
 	if closer, ok := storeImpl.(interface{ Close() }); ok {
 		defer closer.Close()
@@ -46,7 +52,7 @@ func main() {
 	}
 	ingestSvc := service.NewIngestService(aiClient, storeImpl, cfg.Server, cfg.RAG, renderCfg)
 	askSvc := service.NewAskService(aiClient, storeImpl, cfg.RAG)
-	handler := httpapi.NewHandler(ingestSvc, askSvc, cfg.Server.MaxUploadSizeMB)
+	handler := httpapi.NewHandler(ingestSvc, askSvc, aiClient, cfg.Server.MaxUploadSizeMB)
 	router := httpapi.NewRouter(handler)
 
 	srv := &http.Server{
@@ -61,21 +67,22 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		log.Printf("RAG 服务启动，监听 %s", srv.Addr)
+		logger.Info("RAG service started", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("服务启动失败: %v", err)
+			logger.Error("server failed to start", "err", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-quit
-	log.Println("收到退出信号，正在优雅关闭...")
+	logger.Info("shutdown signal received, graceful shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("关闭服务出错: %v", err)
+		logger.Error("shutdown error", "err", err)
 	}
-	log.Println("服务已退出")
+	logger.Info("server exited")
 }
 
 // buildStore 按配置构建存储实现（PostgreSQL + pgvector）。

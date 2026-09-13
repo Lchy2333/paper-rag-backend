@@ -6,6 +6,11 @@ server:
   read_timeout_sec: 60
   write_timeout_sec: 300
 
+log:
+  # 日志级别：info（生产默认）/ debug（打开详细日志，含各阶段明细、公式 OCR 逐条结果）
+  # 支持 ${LOG_LEVEL} 注入环境变量
+  level: "info"
+
 ai:
   provider: "openai-compatible"
   # OpenAI 兼容接口的默认 base_url，例如：

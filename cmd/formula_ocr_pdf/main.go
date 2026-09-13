@@ -61,12 +61,12 @@ func main() {
 	flag.Parse()
 
 	if *pdfPath == "" {
-		log.Fatal("请用 -pdf 指定 PDF 路径")
+		log.Fatal("please specify a PDF path with -pdf")
 	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		log.Fatalf("load config failed: %v", err)
 	}
 
 	client := ai.NewClient(cfg.AI)
@@ -78,7 +78,7 @@ func main() {
 
 	f, reader, err := openPDF(*pdfPath)
 	if err != nil {
-		log.Fatalf("打开 PDF 失败: %v", err)
+		log.Fatalf("open PDF failed: %v", err)
 	}
 	defer f.Close()
 
@@ -101,19 +101,19 @@ func main() {
 				Top:   fr.Top,
 				Bot:   fr.Bot,
 			}
-			fmt.Printf("第%d页 公式%d  扁平文本=[%s]  坐标(%.0f,%.0f,%.0f,%.0f)\n",
+			fmt.Printf("page %d formula %d  flat_text=[%s]  bbox(%.0f,%.0f,%.0f,%.0f)\n",
 				p, i+1, strings.ReplaceAll(fr.Text, "\n", " / "), fr.Left, fr.Right, fr.Top, fr.Bot)
 			if *detectOnly {
 				continue
 			}
 			img, err := renderCfg.CropPage(*pdfPath, p, region)
 			if err != nil {
-				log.Printf("第%d页公式%d渲染失败: %v", p, i+1, err)
+				log.Printf("page %d formula %d render failed: %v", p, i+1, err)
 				continue
 			}
 			latex, err := client.FormulaOCR(context.Background(), img)
 			if err != nil {
-				log.Printf("第%d页公式%d OCR 失败: %v", p, i+1, err)
+				log.Printf("page %d formula %d OCR failed: %v", p, i+1, err)
 				continue
 			}
 			fmt.Printf("        →  LaTeX=[%s]\n", latex)
