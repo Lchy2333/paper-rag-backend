@@ -6,12 +6,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 
+	"paper-rag-backend/internal/logger"
 	"paper-rag-backend/internal/model"
 	"paper-rag-backend/internal/segment"
 )
@@ -57,8 +59,8 @@ func (s *PostgresStore) Close() {
 
 func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO documents (id, user_id, filename, title, page_count, size_bytes, chunk_count, status, error, content_hash, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO documents (id, user_id, filename, title, page_count, size_bytes, chunk_count, status, error, content_hash, chunk_size, chunk_overlap, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT (id) DO UPDATE SET
 			filename = EXCLUDED.filename,
 			title = EXCLUDED.title,
@@ -66,9 +68,11 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 			size_bytes = EXCLUDED.size_bytes,
 			chunk_count = EXCLUDED.chunk_count,
 			status = EXCLUDED.status,
-			error = EXCLUDED.error`,
+			error = EXCLUDED.error,
+			chunk_size = EXCLUDED.chunk_size,
+			chunk_overlap = EXCLUDED.chunk_overlap`,
 		doc.ID, doc.UserID, doc.Filename, doc.Title, doc.PageCount, doc.SizeBytes,
-		doc.ChunkCount, doc.Status, doc.Error, doc.ContentHash, doc.CreatedAt,
+		doc.ChunkCount, doc.Status, doc.Error, doc.ContentHash, doc.ChunkSize, doc.ChunkOverlap, doc.CreatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("保存文档失败: %w", err)
@@ -76,13 +80,16 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 	return nil
 }
 
+// docColumns 是文档表的查询列（含分块参数），各查询复用。
+const docColumns = `id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), chunk_size, chunk_overlap, created_at`
+
 func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT `+docColumns+`
 		FROM documents WHERE id = $1`, id,
 	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
-		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
+		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.ChunkSize, &d.ChunkOverlap, &d.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -94,7 +101,7 @@ func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Docu
 
 func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT `+docColumns+`
 		FROM documents ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("查询文档列表失败: %w", err)
@@ -105,7 +112,7 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 	for rows.Next() {
 		var d model.Document
 		if err := rows.Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
-			&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt); err != nil {
+			&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.ChunkSize, &d.ChunkOverlap, &d.CreatedAt); err != nil {
 			return nil, fmt.Errorf("读取文档列表失败: %w", err)
 		}
 		docs = append(docs, d)
@@ -117,10 +124,10 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), created_at
+		SELECT `+docColumns+`
 		FROM documents WHERE content_hash = $1`, hash,
 	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
-		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.CreatedAt)
+		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.ChunkSize, &d.ChunkOverlap, &d.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -138,6 +145,14 @@ func (s *PostgresStore) DeleteDocument(ctx context.Context, id string) error {
 	return nil
 }
 
+// DeleteChunks 删除某文档的全部 chunk（重分块用），文档元数据保持不变。
+func (s *PostgresStore) DeleteChunks(ctx context.Context, documentID string) error {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM chunks WHERE document_id = $1`, documentID); err != nil {
+		return fmt.Errorf("删除分块失败: %w", err)
+	}
+	return nil
+}
+
 // ---- 向量 ----
 
 // AddChunks 批量写入分块（含向量与分词 tsvector）。使用事务保证要么全部成功要么全部回滚。
@@ -148,6 +163,7 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 		return nil
 	}
 
+	start := time.Now()
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("开启事务失败: %w", err)
@@ -169,6 +185,7 @@ func (s *PostgresStore) AddChunks(ctx context.Context, chunks []model.Chunk) err
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
 	}
+	logger.Debug("store.add_chunks_done", "chunks", len(chunks), "duration_ms", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -193,10 +210,12 @@ func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, t
 	}
 
 	// 向量路
+	searchStart := time.Now()
 	vectorResults, err := s.searchVector(ctx, query, topK, threshold, opts)
 	if err != nil {
 		return nil, err
 	}
+	logger.Debug("search.vector_done", "hits", len(vectorResults), "duration_ms", time.Since(searchStart).Milliseconds())
 
 	// 非混合：直接返回向量结果
 	if !opts.UseHybrid || strings.TrimSpace(opts.QueryText) == "" {
@@ -206,17 +225,25 @@ func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, t
 	// 混合：向量路 + tsvector 全文路（主力，真 BM25 风格）+ pg_trgm 字面路（补充公式/符号）→ RRF 合并
 	tsvResults, err := s.searchTsvector(ctx, opts.QueryText, topK, opts)
 	if err != nil {
-		// 全文路失败不阻塞：降级到 pg_trgm 字面路
+		// 全文路失败不阻塞：降级到 pg_trgm 字面路。这里必须打 warn——
+		// 失败被吞掉会让结果悄悄变差且无从察觉，warn 暴露降级。
+		logger.Warn("search.tsv_failed", "err", err)
 		tsvResults = nil
+	} else {
+		logger.Debug("search.tsv_done", "hits", len(tsvResults))
 	}
 
 	lexResults, err := s.searchLexical(ctx, opts.QueryText, topK, opts)
 	if err != nil {
+		logger.Warn("search.lex_failed", "err", err)
 		lexResults = nil
+	} else {
+		logger.Debug("search.lex_done", "hits", len(lexResults))
 	}
 
 	merged := rrfMerge(vectorResults, tsvResults, topK, threshold)
 	merged = rrfMerge(merged, lexResults, topK, threshold)
+	logger.Debug("search.merged_done", "hits", len(merged), "top_k", topK)
 	return merged, nil
 }
 

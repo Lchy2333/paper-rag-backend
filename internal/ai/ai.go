@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
 
 	"paper-rag-backend/internal/config"
+	"paper-rag-backend/internal/logger"
+	"paper-rag-backend/internal/model"
 )
 
 // Client 封装 Embedding、Chat 与公式 OCR 三个 AI 能力，底层为 OpenAI 兼容接口。
@@ -73,23 +77,28 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 	if batch <= 0 {
 		batch = 16
 	}
+	total := (len(texts) + batch - 1) / batch
 
 	for i := 0; i < len(texts); i += batch {
 		end := i + batch
 		if end > len(texts) {
 			end = len(texts)
 		}
+		batchNo := i/batch + 1
+		batchStart := time.Now()
 		req := openai.EmbeddingRequest{
 			Model: openai.EmbeddingModel(c.cfg.Embedding.Model),
 			Input: texts[i:end],
 		}
 		resp, err := c.embedding.CreateEmbeddings(ctx, req)
 		if err != nil {
+			logger.Error("embed.batch_failed", "batch", batchNo, "total", total, "texts", end-i, "err", err)
 			return nil, fmt.Errorf("embedding 请求失败: %w", err)
 		}
 		for _, d := range resp.Data {
 			all = append(all, d.Embedding)
 		}
+		logger.Debug("embed.batch_done", "batch", batchNo, "total", total, "texts", end-i, "duration_ms", time.Since(batchStart).Milliseconds())
 	}
 	return all, nil
 }
@@ -194,12 +203,141 @@ func (c *Client) FormulaTextToLatex(ctx context.Context, flatText string) (strin
 	return CleanLatex(resp.Choices[0].Message.Content), nil
 }
 
+// testImagePNG 是连接测试用的最小有效 PNG（1x1），只验证"视觉模型端点 + 鉴权 + 模型可用"。
+// 不用真实公式图：测试只看连通性，不关心识别结果。
+const testImagePNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+// TestConnection 向用户提供的 base_url 发一次最小请求，验证 LLM 连通性。
+// 返回结果永远非 nil；OK=false 时 Error 说明原因。请求前做基础 SSRF 防护。
+func (c *Client) TestConnection(ctx context.Context, req model.ConnectionTest) *model.ConnectionResult {
+	start := time.Now()
+	res := &model.ConnectionResult{Kind: req.Kind}
+
+	if err := checkPublicBaseURL(req.BaseURL); err != nil {
+		res.Error = err.Error()
+		return res
+	}
+
+	httpClient := &http.Client{Timeout: 15 * time.Second}
+	oc := newOpenAIClient(req.APIKey, req.BaseURL, httpClient)
+
+	switch strings.ToLower(req.Kind) {
+	case "embedding", "embed":
+		resp, err := oc.CreateEmbeddings(ctx, openai.EmbeddingRequest{
+			Model: openai.EmbeddingModel(req.Model),
+			Input: []string{"ping"},
+		})
+		if err != nil {
+			res.Error = err.Error()
+			return res
+		}
+		if len(resp.Data) == 0 {
+			res.Error = "embedding 返回空结果"
+			return res
+		}
+		res.OK = true
+	case "chat", "completion", "text":
+		resp, err := oc.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model:    req.Model,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "ping"}},
+			MaxTokens: 8,
+		})
+		if err != nil {
+			res.Error = err.Error()
+			return res
+		}
+		if len(resp.Choices) == 0 {
+			res.Error = "chat 返回空结果"
+			return res
+		}
+		res.OK = true
+		res.Reply = strings.TrimSpace(resp.Choices[0].Message.Content)
+	case "formula", "ocr":
+		img, err := base64.StdEncoding.DecodeString(testImagePNG)
+		if err != nil {
+			res.Error = "内部错误：测试图片解码失败"
+			return res
+		}
+		dataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(img)
+		resp, err := oc.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model:    req.Model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: formulaSystemPrompt},
+				{Role: openai.ChatMessageRoleUser, MultiContent: []openai.ChatMessagePart{
+					{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: dataURL}},
+				}},
+			},
+			MaxTokens: 32,
+		})
+		if err != nil {
+			res.Error = err.Error()
+			return res
+		}
+		if len(resp.Choices) == 0 {
+			res.Error = "formula OCR 返回空结果"
+			return res
+		}
+		res.OK = true
+		res.Reply = strings.TrimSpace(resp.Choices[0].Message.Content)
+	default:
+		res.Error = "不支持的 kind: " + req.Kind + "（仅支持 embedding / chat / formula）"
+		return res
+	}
+	res.LatencyMS = time.Since(start).Milliseconds()
+	return res
+}
+
+// checkPublicBaseURL 阻止服务器向本机/内网/保留地址发起请求（基础 SSRF 防护）。
+// 注意：DNS 重绑定（lookup 与实际连接解析不同）无法在这里完全避免，
+// 生产环境建议再加一层代理/网关级过滤。
+func checkPublicBaseURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("base_url 解析失败: %v", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("base_url 仅支持 http/https")
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("base_url 缺少主机名")
+	}
+	lower := strings.ToLower(host)
+	if lower == "localhost" || strings.HasSuffix(lower, ".localhost") || strings.HasSuffix(lower, ".local") {
+		return fmt.Errorf("禁止访问本机地址: %s", host)
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("解析主机 %s 失败: %v", host, err)
+	}
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return fmt.Errorf("禁止访问内网/保留地址: %s", ip)
+		}
+	}
+	return nil
+}
+
+func isPrivateIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+}
+
 // FormulaModel 返回公式 OCR 当前配置的模型名（用于日志展示）。
 func (c *Client) FormulaModel() string {
 	if c.cfg.Formula.Model == "" {
 		return "(未配置)"
 	}
 	return c.cfg.Formula.Model
+}
+
+// EmbedModel 返回向量化当前配置的模型名（用于日志展示）。
+func (c *Client) EmbedModel() string {
+	return c.cfg.Embedding.Model
+}
+
+// EmbedBatchSize 返回向量化的批大小（用于日志展示）。
+func (c *Client) EmbedBatchSize() int {
+	return c.cfg.Embedding.BatchSize
 }
 
 // CleanLatex 清洗模型返回的 LaTeX，去掉常见的多余内容：

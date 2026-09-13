@@ -55,6 +55,8 @@ type Store interface {
 
 	// ---- 向量 ----
 	AddChunks(ctx context.Context, chunks []model.Chunk) error
+	// DeleteChunks 删除某文档的全部 chunk（重分块用），不动文档元数据。
+	DeleteChunks(ctx context.Context, documentID string) error
 	// Search 返回与 query 最相似的 topK 个片段（按余弦相似度降序）。
 	// opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
 	Search(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error)

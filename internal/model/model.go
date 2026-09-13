@@ -14,7 +14,35 @@ type Document struct {
 	Status      string    `json:"status"` // pending / ready / failed
 	Error       string    `json:"error,omitempty"`
 	ContentHash string    `json:"content_hash,omitempty"` // 原始文件 SHA-256，用于上传去重
+	ChunkSize   int       `json:"chunk_size"`             // 入库时实际使用的分块大小（0=老数据未知）
+	ChunkOverlap int      `json:"chunk_overlap"`          // 实际使用的重叠字符数
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// IngestOptions 是上传时可选覆盖的文档级 RAG 参数。
+// nil 字段表示使用 config.yaml 中 rag 的全局默认值。
+// 仅分块参数（chunk_size/chunk_overlap）是"文档级"的，检索参数（top_k 等）属查询级，不在此列。
+type IngestOptions struct {
+	ChunkSize    *int `json:"chunk_size"`
+	ChunkOverlap *int `json:"chunk_overlap"`
+}
+
+// ConnectionTest 是用户手动测试 LLM 连通性的请求。
+// kind 取值：embedding（发一条最小向量化请求）/ chat（发一条最小对话请求）/ formula（发一张内置 1x1 测试图给视觉模型 OCR）。
+type ConnectionTest struct {
+	Kind    string `json:"kind" binding:"required"`
+	BaseURL string `json:"base_url" binding:"required"`
+	APIKey  string `json:"api_key"`
+	Model   string `json:"model" binding:"required"`
+}
+
+// ConnectionResult 是连接测试的结果。
+type ConnectionResult struct {
+	OK        bool   `json:"ok"`
+	Kind      string `json:"kind"`
+	LatencyMS int64  `json:"latency_ms"`
+	Reply     string `json:"reply,omitempty"` // chat 测试时模型的回复
+	Error     string `json:"error,omitempty"`
 }
 
 // Chunk 是文档被切分后的文本片段，带向量用于检索。

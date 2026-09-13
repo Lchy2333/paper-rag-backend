@@ -218,11 +218,45 @@ curl -X POST http://localhost:8080/api/v1/ask \
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查 |
+| POST | `/api/v1/connections/test` | 手动测试 LLM 连通性（用户自带模型时先验证再配置） |
 | POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复），逐个解析并向量化入库 |
 | GET | `/api/v1/documents` | 列出全部文档 |
 | GET | `/api/v1/documents/:id` | 查询文档详情 |
+| POST | `/api/v1/documents/:id/rechunk` | 删除该文档全部 chunk 后用新分块参数重新分块入库 |
 | DELETE | `/api/v1/documents/:id` | 删除文档及向量（级联删除 chunks）|
 | POST | `/api/v1/ask` | 提问，返回基于检索片段的回答与引用 |
+
+**上传时的可选分块参数**（作用于本次上传的全部文件，缺省用配置 `rag.chunk_size` / `rag.chunk_overlap`）：
+
+| 表单字段 | 说明 |
+|---------|------|
+| `chunk_size` | 覆盖默认分块大小（字符数） |
+| `chunk_overlap` | 覆盖默认重叠字符数（必须小于 chunk_size） |
+
+```bash
+curl -X POST http://localhost:8080/api/v1/documents \
+  -F "file=@论文.pdf" \
+  -F "chunk_size=400" \
+  -F "chunk_overlap=50"
+```
+
+**重分块**（先上传拿到文档 id，再换分块参数重跑）：请求体为可选的 JSON，空 body 用文档当前参数。
+
+```bash
+curl -X POST http://localhost:8080/api/v1/documents/<doc-id>/rechunk \
+  -H "Content-Type: application/json" \
+  -d '{"chunk_size": 400, "chunk_overlap": 50}'
+```
+
+> 重分块会重新解析 PDF 并重跑公式 OCR/向量化（慢），期间旧 chunk 一直可用；解析/向量化失败时不动旧数据。
+
+**连接测试**：`kind` 必填（`embedding` / `chat` / `formula`），发一次最小请求验证 base_url + api_key + model 是否可用。formula 会发一张内置测试图给视觉模型 OCR（只看连通性，不看识别结果）。服务器会拦截本机/内网地址（SSRF 防护），结果返回 `{ok, latency_ms, reply, error}`。
+
+```bash
+curl -X POST http://localhost:8080/api/v1/connections/test \
+  -H "Content-Type: application/json" \
+  -d '{"kind": "chat", "base_url": "http://localhost:11434/v1", "api_key": "ollama", "model": "qwen3:8b"}'
+```
 
 `/ask` 请求体：
 
@@ -325,6 +359,41 @@ go test ./tests/integration -run TestPostgresStore -v
 - **状态追踪**：文档 `pending / ready / failed` 三态，失败保留原因
 - **嵌入模型一致性**：文档与提问必须用同一 embedding 模型（同坐标系）；chat 模型可任意替换
 
+## 多租户演进设计（BYOK + 鉴权，待做）
+
+> 记录"单用户 → 多租户"的演进方案。当前均**未实现**，已完成部分见下方表格。
+
+**背景**：当前单用户模式——`documents.user_id` 固定 `"local"`，模型配置全局一份（config.yaml），分块参数已支持文档级覆盖（上传/重分块请求体携带，缺省走 config.yaml 的 `rag` 默认）。
+
+**多用户核心诉求**：
+1. 每个用户自带 LLM 配置（BYOK：base_url / api_key / model），存数据库而非 config.yaml
+2. 用户自己验证模型连通性，服务器不在启动时探测
+3. config.yaml 只放"全局默认/兜底"：`ai` 作为未配置自己模型的用户的默认值，`rag` 作为分块/检索参数的默认值
+
+**已完成（2026-09）**：
+
+| 项 | 说明 |
+|----|------|
+| 文档级 RAG 参数 | 上传 `POST /documents`（表单 `chunk_size`/`chunk_overlap`）、重分块 `POST /documents/:id/rechunk`（JSON）支持覆盖默认分块参数；入库存 `documents.chunk_size`/`chunk_overlap` |
+| 重分块接口 | `POST /api/v1/documents/:id/rechunk`：删旧 chunk → 重新解析/分块/向量化 → 写新 |
+| 连接测试接口 | `POST /api/v1/connections/test`：`{kind, base_url, api_key, model}` 发一次最小请求，返回 ok/latency_ms/error；**含基础 SSRF 防护**（禁本机/内网/保留地址） |
+
+**待做 ① 用户 LLM 配置进数据库（BYOK）**
+- [ ] 新建 `user_settings` 表：`user_id, base_url, api_key, model, dimension, batch_size, chat_model, ...`
+- [ ] **api_key 必须加密存储**（对称加密，密钥走环境变量，禁止明文入库）
+- [ ] `ai.Client` 从"启动时建一个全局实例"改为"按用户动态获取"：`user_id → *ai.Client` 的 LRU 缓存池，避免每请求重建 http client；缓存未命中按该用户配置重建，无配置用户回退全局默认
+- [ ] 服务层/Handler 需要拿到当前用户身份（见待做 ②）才能选对 client
+- [ ] 连接测试接口改为可"测试已存配置"（不带 creds，用库里的）
+
+**待做 ② 鉴权中间件（多用户的前提）**
+- [ ] 登录/注册 + token（如 JWT），`/api/v1` 下加鉴权中间件
+- [ ] 把 `IngestService.defaultOwnerUserID = "local"` 换成请求上下文里的真实 user_id
+- [ ] 检索归属过滤（store 已按 user_id 过滤）在鉴权后即自然生效
+
+**顺序建议**：先做 ② 鉴权（拿到真实身份）→ 再做 ① BYOK（按身份取配置）。两者都贴近上线时再动；当前单用户阶段，config.yaml 全局默认 + 连接测试接口足够用。
+
+**相关注意**：config.yaml 仍保留 `ai`/`rag` 节作为全局默认；检索参数（`top_k` 等）是查询级，本就由提问请求体携带；SSRF 防护目前只做了基础拦截（DNS 重绑定无法完全避免），生产建议再加代理层过滤。
+
 ## Roadmap / 下一步规划
 
 按"RAG 后端"与"未来 Agent 项目"划分职责（RAG 保持无状态能力层，对话/流式/登录上浮到 Agent）：
@@ -339,6 +408,7 @@ go test ./tests/integration -run TestPostgresStore -v
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
 
 ### P1：更"工业"
+- **多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）；连接测试接口已就绪。详见上文「多租户演进设计」
 - 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
 - **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 qwen2.5vl:7b 截图 OCR，复杂公式偶发结构错）
 - **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格

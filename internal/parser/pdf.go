@@ -6,8 +6,11 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ledongthuc/pdf"
+
+	"paper-rag-backend/internal/logger"
 )
 
 // BlockKind 区分页面内容块的类型。
@@ -60,12 +63,15 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 	}
 
 	for i := 1; i <= pageCount; i++ {
+		pageStart := time.Now()
 		blocks, err := pageBlocks(reader.Page(i))
 		if err != nil {
 			return nil, fmt.Errorf("解析第 %d 页失败: %w", i, err)
 		}
 		doc.Blocks = append(doc.Blocks, blocks)
-		doc.Pages = append(doc.Pages, pageTextFromBlocks(blocks))
+		text := pageTextFromBlocks(blocks)
+		doc.Pages = append(doc.Pages, text)
+		logger.Debug("parse.page_done", "page", i, "total", pageCount, "blocks", len(blocks), "chars", len([]rune(text)), "duration_ms", time.Since(pageStart).Milliseconds())
 	}
 	return doc, nil
 }

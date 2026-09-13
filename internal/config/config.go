@@ -17,6 +17,14 @@ type Config struct {
 	RAG      RAGConfig      `yaml:"rag"`
 	Database DatabaseConfig `yaml:"database"`
 	Render   RenderConfig   `yaml:"render"`
+	Log      LogConfig      `yaml:"log"`
+}
+
+// LogConfig 是日志配置。
+type LogConfig struct {
+	// Level 日志级别：debug / info / warn / error，默认 info。
+	// debug 打开详细日志（含各阶段明细、公式 OCR 逐条结果等）。
+	Level string `yaml:"level"`
 }
 
 type ServerConfig struct {
@@ -197,6 +205,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Render.DPI == 0 {
 		c.Render.DPI = 150
+	}
+	if c.Log.Level == "" {
+		c.Log.Level = "info"
 	}
 }
 

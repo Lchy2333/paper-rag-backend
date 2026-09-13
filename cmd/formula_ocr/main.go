@@ -23,23 +23,23 @@ func main() {
 	flag.Parse()
 
 	if *imagePath == "" {
-		log.Fatal("请用 -image 指定公式图片路径")
+		log.Fatal("please specify an image path with -image")
 	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		log.Fatalf("load config failed: %v", err)
 	}
 
 	img, err := os.ReadFile(*imagePath)
 	if err != nil {
-		log.Fatalf("读取图片失败: %v", err)
+		log.Fatalf("read image failed: %v", err)
 	}
 
 	client := ai.NewClient(cfg.AI)
 	latex, err := client.FormulaOCR(context.Background(), img)
 	if err != nil {
-		log.Fatalf("公式 OCR 失败: %v", err)
+		log.Fatalf("formula OCR failed: %v", err)
 	}
 
 	fmt.Println(latex)
