@@ -53,7 +53,7 @@ func main() {
 	ingestSvc := service.NewIngestService(aiClient, storeImpl, cfg.Server, cfg.RAG, renderCfg)
 	askSvc := service.NewAskService(aiClient, storeImpl, cfg.RAG)
 	handler := httpapi.NewHandler(ingestSvc, askSvc, aiClient, cfg.Server.MaxUploadSizeMB)
-	router := httpapi.NewRouter(handler)
+	router := httpapi.NewRouter(handler, cfg.Server.APIKey)
 
 	srv := &http.Server{
 		Addr:         cfg.Addr(),
