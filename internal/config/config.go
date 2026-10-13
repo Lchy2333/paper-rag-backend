@@ -34,6 +34,9 @@ type ServerConfig struct {
 	UploadDir       string `yaml:"upload_dir"`
 	ReadTimeoutSec  int    `yaml:"read_timeout_sec"`
 	WriteTimeoutSec int    `yaml:"write_timeout_sec"`
+	// APIKey 服务间鉴权密钥（Agent → RAG，请求头 X-API-Key）。
+	// 为空 = 不启用鉴权（本地开发模式）；生产建议环境变量注入（api_key: "${RAG_API_KEY}"）。
+	APIKey string `yaml:"api_key"`
 }
 
 type AIConfig struct {

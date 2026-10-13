@@ -403,7 +403,8 @@ go test ./tests/integration -run TestPostgresStore -v
 |---|---|---|
 | 异步摄入队列 | RAG | 大 PDF 摄入不再阻塞请求，工具调用先返回 job id |
 | ~~混合检索（BM25 + 向量）~~ | RAG | ✅ 已实现（2026-09）：向量 + tsvector 全文（gojieba 分词）+ pg_trgm 字面，三路 RRF 融合 |
-| 服务级鉴权（API Key） | RAG | Agent ↔ RAG 的服务间鉴权；用户登录在 Agent/前端 |
+| **`/search` 纯检索接口（ADR-001 双接口演进）** | RAG | 把 `/ask` 的检索阶段独立暴露（返回 chunks + 引用，**不调 LLM**），供 Agent 自拼上下文回答；`/ask` 保留。契约见 Agent 仓库 `architecture.md` |
+| ~~服务级鉴权（API Key）~~ | RAG | ✅ 已实现（2026-10）：`server.api_key` + `X-API-Key` 中间件（常量时间比较，`/health` 豁免，空值=开发模式不启用）；Agent 侧 `RAG_API_KEY` 经 session 默认头携带。用户登录在 Agent/前端 |
 | Docker 化部署 | RAG + Agent | RAG 作为独立服务部署 |
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
 
