@@ -45,7 +45,7 @@ func (f *fakeIngester) Delete(context.Context, string) error                 { r
 
 func TestHandler_UploadMultipleFiles(t *testing.T) {
 	ingester := &fakeIngester{errs: map[string]error{"bad.pdf": errors.New("PDF 解析失败: test")}}
-	h := httpapi.NewHandler(ingester, nil, nil, 20)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -101,7 +101,7 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 
 func TestHandler_UploadDuplicate(t *testing.T) {
 	ingester := &fakeIngester{dups: map[string]error{"dup.pdf": service.ErrDuplicateDocument}}
-	h := httpapi.NewHandler(ingester, nil, nil, 20)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -142,7 +142,7 @@ func TestHandler_UploadDuplicate(t *testing.T) {
 }
 
 func TestHandler_UploadNoFile(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", bytes.NewBufferString("no file"))
@@ -163,7 +163,7 @@ func (f *fakeTester) TestConnection(_ context.Context, req model.ConnectionTest)
 }
 
 func TestHandler_ConnectionTest(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, &fakeTester{}, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"kind":"embedding","base_url":"http://example.com/v1","api_key":"x","model":"bge-m3"}`
@@ -185,7 +185,7 @@ func TestHandler_ConnectionTest(t *testing.T) {
 }
 
 func TestHandler_RechunkDocument(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"chunk_size":400,"chunk_overlap":50}`
@@ -209,7 +209,7 @@ func TestHandler_RechunkDocument(t *testing.T) {
 }
 
 func TestHandler_RechunkDocumentBadJSON(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents/abc/rechunk", bytes.NewBufferString(`{"chunk_size":}`))

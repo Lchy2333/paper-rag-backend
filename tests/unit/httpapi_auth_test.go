@@ -12,7 +12,7 @@ import (
 
 // newAuthTestRouter 构造带指定 API Key 的路由，用 GET /api/v1/documents 作为受保护接口代表。
 func newAuthTestRouter(apiKey string) *gin.Engine {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
 	return httpapi.NewRouter(h, apiKey)
 }
 
