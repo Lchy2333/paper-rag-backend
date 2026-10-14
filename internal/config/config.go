@@ -47,6 +47,7 @@ type AIConfig struct {
 	Embedding  EmbeddingConfig `yaml:"embedding"`
 	Chat       ChatConfig      `yaml:"chat"`
 	Formula    FormulaConfig   `yaml:"formula"`
+	Rerank     RerankConfig    `yaml:"rerank"`
 }
 
 type EmbeddingConfig struct {
@@ -73,6 +74,20 @@ type FormulaConfig struct {
 	MaxTokens   int     `yaml:"max_tokens"`
 	BaseURL     string  `yaml:"base_url"` // 可选，为空则回退到 ai.base_url
 	APIKey      string  `yaml:"api_key"`  // 可选，为空则回退到 ai.api_key
+}
+
+// RerankConfig 是重排序（cross-encoder 精排）配置，走 Jina/Cohere 兼容的 /rerank 协议
+// （SiliconFlow / Xinference 均为此形状）。失败自动降级为粗排顺序（fail-open），不阻塞问答。
+// 注意：base_url / api_key 指向与 ai.base_url 不同的服务商时必须成对显式填写，
+// 否则回退到 ai.*（如 ark 的 key 对 SiliconFlow 鉴权会 401）。
+type RerankConfig struct {
+	Enabled       bool   `yaml:"enabled"`
+	Model         string `yaml:"model"`
+	BaseURL       string `yaml:"base_url"`       // 可选，为空则回退到 ai.base_url
+	APIKey        string `yaml:"api_key"`        // 可选，为空则回退到 ai.api_key
+	CandidatePool int    `yaml:"candidate_pool"` // 粗排候选数（先捞这么多再精排），默认 30
+	TopN          int    `yaml:"top_n"`          // 精排后保留数，0 = 沿用 rag.top_k
+	TimeoutSec    int    `yaml:"timeout_sec"`    // 独立短超时（rerank 在提问热路径上，不复用 chat 的长超时），默认 15
 }
 
 type RAGConfig struct {
@@ -200,6 +215,12 @@ func (c *Config) applyDefaults() {
 	if c.AI.Formula.MaxTokens == 0 {
 		c.AI.Formula.MaxTokens = 1024
 	}
+	if c.AI.Rerank.CandidatePool == 0 {
+		c.AI.Rerank.CandidatePool = 30
+	}
+	if c.AI.Rerank.TimeoutSec == 0 {
+		c.AI.Rerank.TimeoutSec = 15
+	}
 	if c.RAG.ChunkSize == 0 {
 		c.RAG.ChunkSize = 800
 	}
@@ -230,6 +251,9 @@ func (c *Config) Validate() error {
 	}
 	if c.AI.Chat.Model == "" {
 		return fmt.Errorf("ai.chat.model 不能为空")
+	}
+	if c.AI.Rerank.Enabled && c.AI.Rerank.Model == "" {
+		return fmt.Errorf("ai.rerank.enabled 为 true 时 ai.rerank.model 不能为空")
 	}
 	if c.Database.Type == "postgres" && c.Database.Password == "" {
 		return fmt.Errorf("database.password 不能为空（可通过环境变量注入，如 ${POSTGRES_PASSWORD}）")

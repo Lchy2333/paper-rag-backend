@@ -64,6 +64,21 @@ ai:
     temperature: 0.1
     max_tokens: 1024
 
+  rerank:
+    # 重排序（精排）：三路混合粗排后，用 cross-encoder 对候选重打分排序。
+    # 协议为 /rerank（Jina/Cohere 形状，SiliconFlow / Xinference 同款）。
+    # 失败自动降级为粗排顺序（fail-open），不阻塞问答。
+    # 注意：base_url 和 api_key 要成对显式填——留空会回退到 ai.base_url / ai.api_key
+    #（若 ai.* 指向其他服务商，鉴权会对不上）。
+    # SiliconFlow 的 BAAI/bge-reranker-v2-m3 免费（2026-10 实测），限流 RPM 2000 / TPM 50 万。
+    enabled: false
+    model: "BAAI/bge-reranker-v2-m3"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    candidate_pool: 30   # 先从三路混合多捞 30 条候选，精排后截断回 top_k
+    top_n: 0             # 0 = 沿用 rag.top_k（请求级 top_k 优先）
+    timeout_sec: 15      # 独立短超时（提问热路径上，不能复用 chat 的长超时）
+
 rag:
   chunk_size: 800
   chunk_overlap: 150

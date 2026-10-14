@@ -64,6 +64,11 @@ type Question struct {
 	TopK        int      `json:"top_k"`                  // 可选，覆盖默认 top_k
 	DocumentIDs []string `json:"document_ids,omitempty"` // 可选，限定检索范围；为空则全库检索
 	UserID      string   `json:"user_id,omitempty"`      // 归属者；为空时服务层默认 "local"
+	// Rerank 可选，请求级精排开关（三态）：
+	//   nil   = 跟随 ai.rerank.enabled 配置（默认行为，老调用方不传即此）
+	//   true  = 强制开启（要求 ai.rerank.model 已配置，否则无从调用、回退关闭）
+	//   false = 强制关闭（临时关闭做对比/调试，不动配置）
+	Rerank *bool `json:"rerank,omitempty"`
 }
 
 // UploadResult 是多文件上传时单个文件的处理结果。
