@@ -69,12 +69,21 @@ func (s *SearchService) Search(ctx context.Context, q model.Question) (*SearchRe
 	if q.TopK > 0 {
 		topK = q.TopK
 	}
+	// rerank 开启时先放宽检索量（粗排多捞候选），精排后再截断回 topK。
+	// 请求级开关：q.Rerank 非 nil 时强制开/关，nil 时跟随 ai.rerank.enabled。
+	useRerank := resolveRerank(s.ai, q.Rerank, "search")
+	pool := topK
+	if useRerank {
+		if p := s.ai.RerankPool(); p > pool {
+			pool = p
+		}
+	}
 	userID := q.UserID
 	if userID == "" {
 		userID = defaultOwnerUserID
 	}
 	searchStart := time.Now()
-	results, err := s.store.Search(ctx, vectors[0], topK, s.cfg.SimilarityThreshold, store.SearchOptions{
+	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{
 		DocIDs:    q.DocumentIDs,
 		UserID:    userID,
 		UseHybrid: true,
@@ -84,8 +93,13 @@ func (s *SearchService) Search(ctx context.Context, q model.Question) (*SearchRe
 		logger.Error("search.search_failed", "err", err)
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}
-	logger.Debug("search.search_done", "hits", len(results), "top_k", topK,
+	logger.Debug("search.search_done", "hits", len(results), "top_k", pool,
 		"duration_ms", time.Since(searchStart).Milliseconds())
+
+	// 2.5 精排：候选超过 topK 时 cross-encoder 重打分排序；失败自动降级原顺序（fail-open）
+	if useRerank && len(results) > topK {
+		results = rerankResults(ctx, s.ai, "search", q.Query, results, topK)
+	}
 
 	// 3. 拼成结构化响应（content = 完整 chunk，不截断——Agent 自拼上下文用）
 	items := make([]SearchItem, 0, len(results))

@@ -17,19 +17,26 @@ import (
 	"paper-rag-backend/internal/model"
 )
 
-// Client 封装 Embedding、Chat 与公式 OCR 三个 AI 能力，底层为 OpenAI 兼容接口。
-// 三个能力各持一个独立客户端，可指向不同的 base_url。
+// Client 封装 Embedding、Chat、公式 OCR 与 Rerank 四个 AI 能力。
+// 前三个为 OpenAI 兼容接口，各持一个独立客户端，可指向不同的 base_url；
+// Rerank 协议不是 OpenAI 兼容（/rerank，Jina/Cohere 形状），持独立短超时的裸 HTTP 客户端。
 type Client struct {
-	embedding *openai.Client
-	chat      *openai.Client
-	formula   *openai.Client
-	cfg       config.AIConfig
+	embedding  *openai.Client
+	chat       *openai.Client
+	formula    *openai.Client
+	rerankHTTP *http.Client
+	cfg        config.AIConfig
 }
 
 // NewClient 根据配置创建 AI 客户端。
 // 各能力的 base_url、api_key 未单独设置时，回退到 ai.base_url / ai.api_key。
 func NewClient(cfg config.AIConfig) *Client {
 	httpClient := &http.Client{Timeout: time.Duration(cfg.TimeoutSec) * time.Second}
+	// rerank 在提问热路径上，用独立短超时（配置未走 applyDefaults 时兜底 15s）
+	rerankTimeout := cfg.Rerank.TimeoutSec
+	if rerankTimeout <= 0 {
+		rerankTimeout = 15
+	}
 	return &Client{
 		embedding: newOpenAIClient(
 			firstNonEmpty(cfg.Embedding.APIKey, cfg.APIKey),
@@ -46,7 +53,8 @@ func NewClient(cfg config.AIConfig) *Client {
 			firstNonEmpty(cfg.Formula.BaseURL, cfg.BaseURL),
 			httpClient,
 		),
-		cfg: cfg,
+		rerankHTTP: &http.Client{Timeout: time.Duration(rerankTimeout) * time.Second},
+		cfg:        cfg,
 	}
 }
 

@@ -265,11 +265,12 @@ curl -X POST http://localhost:8080/api/v1/connections/test \
     "query": "问题内容",
     "top_k": 5,
     "document_ids": ["doc-id-1", "doc-id-2"],
-    "user_id": "local"
+    "user_id": "local",
+    "rerank": true
 }
 ```
 
-`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`user_id` 可选（检索只命中该用户上传的文档，不传默认 `local`）。
+`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`user_id` 可选（检索只命中该用户上传的文档，不传默认 `local`）；`rerank` 可选（请求级精排开关：**不传 = 跟随配置 `ai.rerank.enabled`**；`true` = 强制开启重排序（要求已配置 `ai.rerank.model`）；`false` = 强制关闭。适合临时对比/调试，不动配置）。`/search` 请求体同款。
 
 **指定文档对比提问**示例：先 `GET /api/v1/documents` 拿到两篇论文的 id，再限定范围提问：
 
