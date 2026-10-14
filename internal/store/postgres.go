@@ -373,8 +373,9 @@ func (s *PostgresStore) searchLexical(ctx context.Context, queryText string, top
 		cond = append(cond, "("+strings.Join(termConds, " OR ")+")")
 	}
 
-	// 归属过滤（user_id / document_id），用 AND 追加在词条件之后
-	filterClause, filterArgs := buildFilterClause(opts)
+	// 归属过滤（user_id / document_id），用 AND 追加在词条件之后。
+	// base = len(args)（前面已有 ILIKE 词参数），占位符续接，避免与词参数错位（曾踩坑 42P18）。
+	filterClause, filterArgs := buildFilterClause(opts, len(args))
 	if filterClause != "" {
 		cond = append(cond, filterClause)
 		args = append(args, filterArgs...)
@@ -429,20 +430,24 @@ func (s *PostgresStore) searchTsvector(ctx context.Context, queryText string, to
 	// 公式/专名整串保留 + 中文分词词，用 AND 组合保证精确（websearch 空格=AND）
 	// 若 AND 无结果可降级 OR，v1 先用 AND + 加大召回 LIMIT。
 	query := strings.ReplaceAll(tokens, " ", " & ")
-	tsq := fmt.Sprintf("to_tsquery('simple', %q)", query)
 
-	// 归属过滤（user_id / document_id）
-	filterClause, filterArgs := buildFilterClause(opts)
-	where := "c.tsv @@ " + tsq
+	// 归属过滤（user_id / document_id）；tsv 路前方无其他参数，base=0
+	filterClause, filterArgs := buildFilterClause(opts, 0)
+	// tsq 参数化：WHERE 与 SELECT ts_rank 各用一次，占位符分开、传两次值，
+	// 避免 %q 双引号被 PG 当列标识符（曾踩坑 42703）。
+	tsqWherePos := len(filterArgs) + 1
+	tsqRankPos := tsqWherePos + 1
+	limitPos := tsqRankPos + 1
+	args := append(filterArgs, query, query, topK*5)
+
+	where := "c.tsv @@ to_tsquery('simple', $" + itoa(tsqWherePos) + ")"
 	if filterClause != "" {
 		where += " AND " + filterClause
 	}
-	limitPos := len(filterArgs) + 1
-	args := append(filterArgs, topK*5)
 
 	sql := `
 		SELECT c.id, c.document_id, d.filename, d.user_id, c.page, c.idx, c.content, c.created_at,
-			   ts_rank(c.tsv, ` + tsq + `) AS similarity
+			   ts_rank(c.tsv, to_tsquery('simple', $` + itoa(tsqRankPos) + `)) AS similarity
 		FROM chunks c
 		JOIN documents d ON c.document_id = d.id
 		WHERE ` + where + `
@@ -578,18 +583,21 @@ func (s *PostgresStore) filterDocsByUser(ctx context.Context, conn *pgxpool.Conn
 }
 
 // buildFilterClause 生成检索过滤条件（user_id / document_id）。
-// 返回 SQL 片段（不含 WHERE 关键字）与对应参数，供全文路/字面路复用，
-// 保证和向量路一致地遵守用户归属与文档范围。
-func buildFilterClause(opts SearchOptions) (string, []any) {
+// base 是调用方已占用参数的个数（如 lex 路的 ILIKE 词参数），占位符从 base+1 起编号，
+// 避免与前方参数错位（曾踩坑：lex 路词条件占 $1..$N，过滤条件却从 $1 起编号 → 42P18 类型冲突）。
+func buildFilterClause(opts SearchOptions, base int) (string, []any) {
 	var conds []string
 	var args []any
+	pos := base
 	if opts.UserID != "" {
+		pos++
 		args = append(args, opts.UserID)
-		conds = append(conds, fmt.Sprintf("d.user_id = $%d", len(args)))
+		conds = append(conds, fmt.Sprintf("d.user_id = $%d", pos))
 	}
 	if len(opts.DocIDs) > 0 {
+		pos++
 		args = append(args, opts.DocIDs)
-		conds = append(conds, fmt.Sprintf("c.document_id = ANY($%d)", len(args)))
+		conds = append(conds, fmt.Sprintf("c.document_id = ANY($%d)", pos))
 	}
 	return strings.Join(conds, " AND "), args
 }
