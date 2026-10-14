@@ -31,6 +31,9 @@ func NewRouter(h *Handler, apiKey string) *gin.Engine {
 
 		// RAG 问答
 		api.POST("/ask", h.Ask)
+
+		// RAG 纯检索（不调 LLM，Agent 默认入口；与 /ask 保留并行）
+		api.POST("/search", h.Search)
 	}
 
 	return r

@@ -38,15 +38,17 @@ type connectionTester interface {
 type Handler struct {
 	ingest         documentService
 	ask            *service.AskService
+	search         *service.SearchService
 	tester         connectionTester
 	maxUploadBytes int64
 }
 
 // NewHandler 创建处理器。
-func NewHandler(ingest documentService, ask *service.AskService, tester connectionTester, maxUploadMB int64) *Handler {
+func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64) *Handler {
 	return &Handler{
 		ingest:         ingest,
 		ask:            ask,
+		search:         search,
 		tester:         tester,
 		maxUploadBytes: maxUploadMB * 1024 * 1024,
 	}
@@ -265,6 +267,26 @@ func (h *Handler) Ask(c *gin.Context) {
 	}
 	logger.Debug("ask.request_done", "query", truncate(q.Query, 120), "hits", answer.TotalChunks, "latency_ms", answer.LatencyMS)
 	c.JSON(http.StatusOK, gin.H{"answer": answer})
+}
+
+// Search 暴露检索接口（POST /api/v1/search）。
+// 不调 LLM，返回纯结构化命中片段（content = 完整 chunk），供 Agent 自拼上下文回答
+// （双接口演进 ADR-001）。
+func (h *Handler) Search(c *gin.Context) {
+	var q model.Question
+	if err := c.ShouldBindJSON(&q); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
+		return
+	}
+	resp, err := h.search.Search(c.Request.Context(), q)
+	if err != nil {
+		logger.Error("search.request_failed", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	logger.Debug("search.request_done", "query", truncate(q.Query, 120),
+		"hits", resp.TotalChunks, "latency_ms", resp.LatencyMS)
+	c.JSON(http.StatusOK, resp)
 }
 
 func truncate(s string, n int) string {
