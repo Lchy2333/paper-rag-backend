@@ -55,8 +55,21 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 	}
 
 	pageCount := reader.NumPage()
+
+	// 预扫描：找出"产生过 NUL 的字体"（坏字体整层跳过，见 scanBadFonts）。
+	// 扫描件 OCR 垃圾层（如 HiddenVertOCR）是 NUL 的主要来源。
+	badFonts := scanBadFonts(reader, pageCount)
+	if len(badFonts) > 0 {
+		names := make([]string, 0, len(badFonts))
+		for n := range badFonts {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		logger.Warn("parse.bad_fonts_skipped", "fonts", strings.Join(names, ","))
+	}
+
 	doc := &ParsedDocument{
-		Title:     inferTitle(reader),
+		Title:     inferTitle(reader, badFonts),
 		PageCount: pageCount,
 		Pages:     make([]string, 0, pageCount),
 		Blocks:    make([][]Block, 0, pageCount),
@@ -64,7 +77,7 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 
 	for i := 1; i <= pageCount; i++ {
 		pageStart := time.Now()
-		blocks, err := pageBlocks(reader.Page(i))
+		blocks, err := pageBlocks(reader.Page(i), badFonts)
 		if err != nil {
 			return nil, fmt.Errorf("解析第 %d 页失败: %w", i, err)
 		}
@@ -74,6 +87,42 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 		logger.Debug("parse.page_done", "page", i, "total", pageCount, "blocks", len(blocks), "chars", len([]rune(text)), "duration_ms", time.Since(pageStart).Milliseconds())
 	}
 	return doc, nil
+}
+
+// scanBadFonts 预扫描全部页面，收集"产生过 NUL(\x00) 字节的字体"。
+//
+// 依据：正常排版字体几乎从不会产生 NUL——NUL 是解码失败的产物（ToUnicode CMap 把
+// 字形码映射到 U+0000，或扫描件 OCR 垃圾层解码出错）。某字体只要在任一处产生过 NUL，
+// 说明它的解码是坏的，整层跳过。典型案例：扫描件 OCR 的 HiddenVertOCR 竖排垃圾层
+// （NUL+FFFD+乱码混入正文，且 NUL 会被 PostgreSQL text 类型拒绝 → SQLSTATE 22021）。
+//
+// 注意：不能按字体名黑名单（各 OCR 工具的层命名各不相同：Hidden*OCR / ABBYY / Adobe…），
+// 按"内容质量信号（是否产 NUL）"判定更通用，对正常排版 PDF 零影响（无字体产 NUL）。
+func scanBadFonts(reader *pdf.Reader, pageCount int) map[string]bool {
+	bad := make(map[string]bool)
+	for i := 1; i <= pageCount; i++ {
+		for _, t := range reader.Page(i).Content().Text {
+			if strings.ContainsRune(t.S, '\x00') {
+				bad[t.Font] = true
+			}
+		}
+	}
+	return bad
+}
+
+// filterBadFonts 从字形列表剔除坏字体（产生过 NUL 的字体）的字形。
+func filterBadFonts(text []pdf.Text, badFonts map[string]bool) []pdf.Text {
+	if len(badFonts) == 0 {
+		return text
+	}
+	out := make([]pdf.Text, 0, len(text))
+	for _, t := range text {
+		if badFonts[t.Font] {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }
 
 // pageTextFromBlocks 把页面块流拼接成整页文本（块间空行分隔），
@@ -92,7 +141,8 @@ func pageTextFromBlocks(blocks []Block) string {
 // pageBlocks 提取页面的有序块流：普通文本块 + 表格块（Markdown）+ 公式块（扁平文本）。
 // 块按版面顺序排列（从上到下），表格块与公式块整体独立，不与其他文本混排。
 // 优先级：表格 > 公式 > 普通文本（同一区域的字形先归表格，再归公式）。
-func pageBlocks(p pdf.Page) (blocks []Block, err error) {
+// badFonts 是扫描件 OCR 垃圾层字体集合（产生过 NUL），其字形在入口处整层剔除。
+func pageBlocks(p pdf.Page, badFonts map[string]bool) (blocks []Block, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			blocks = nil
@@ -101,14 +151,18 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 	}()
 
 	content := p.Content()
+	content.Text = filterBadFonts(content.Text, badFonts) // 坏字体字形整层剔除（NUL 来源）
 	tables := detectTables(content)
 	formulas := DetectFormulas(content)
 	if len(tables) == 0 && len(formulas) == 0 {
-		text, err := pageText(p)
+		text, err := pageText(p, badFonts)
 		if err != nil {
 			return nil, err
 		}
-		return []Block{{Kind: BlockText, Content: text}}, nil
+		// 必须过 normalizeText（与下方 flushText 路径一致）：剥 \x00 / 非法 UTF-8 / 折叠空白。
+		// 曾踩坑：快速路径漏了它，扫描件 OCR 垃圾层的 NUL 进 chunk → PostgreSQL 拒绝 0x00
+		// （SQLSTATE 22021，GB 50010-2010 全篇入不了库）。
+		return []Block{{Kind: BlockText, Content: normalizeText(text)}}, nil
 	}
 
 	// 公式区域字形 -> 公式下标（原文下标，与 content.Text 一致）
@@ -196,7 +250,8 @@ func pageBlocks(p pdf.Page) (blocks []Block, err error) {
 // 每行末尾、段落折行处都被混入一个假字符（见 AGENTS.md 的踩坑记录）。
 // Content() 内部正确跟踪文本矩阵（Tm/Td/T*），返回带 X/Y 坐标的逐字文本，
 // 这里再按 (Y↓, X↑) 排序即可还原版面阅读顺序，且不产生任何假字符。
-func pageText(p pdf.Page) (text string, err error) {
+// pageText 按版面阅读顺序 (Y↓, X↑) 组装整页文本，坏字体（OCR 垃圾层）字形剔除后参与。
+func pageText(p pdf.Page, badFonts map[string]bool) (text string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			text = ""
@@ -205,6 +260,7 @@ func pageText(p pdf.Page) (text string, err error) {
 	}()
 
 	content := p.Content()
+	content.Text = filterBadFonts(content.Text, badFonts) // 坏字体字形整层剔除（NUL 来源）
 	sort.Slice(content.Text, func(i, j int) bool {
 		if content.Text[i].Y > content.Text[j].Y {
 			return true
@@ -258,7 +314,7 @@ func trimTrailingJunk(r io.ReaderAt, size int64) (int64, error) {
 }
 
 // inferTitle 从元数据或第一页前几行猜测文档标题。
-func inferTitle(r *pdf.Reader) string {
+func inferTitle(r *pdf.Reader, badFonts map[string]bool) string {
 	// PDF 规范里 Info 在 trailer 下（trailer /Info /Title），不是 Root 下的 Info。
 	if t := r.Trailer().Key("Info").Key("Title"); !t.IsNull() {
 		if s := t.Text(); strings.TrimSpace(s) != "" {
@@ -266,7 +322,7 @@ func inferTitle(r *pdf.Reader) string {
 		}
 	}
 	if r.NumPage() >= 1 {
-		text, err := pageText(r.Page(1))
+		text, err := pageText(r.Page(1), badFonts)
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(normalizeText(text)), "\n")
 			for _, l := range lines {

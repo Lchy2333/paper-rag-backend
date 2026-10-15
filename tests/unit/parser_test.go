@@ -63,6 +63,36 @@ func TestParsePDF(t *testing.T) {
 	}
 }
 
+// TestParsePDF_FastPathNormalized 回归：无表格/无公式的快速路径，块内容必须过
+// normalizeText（剥 \x00、\r→\n、折叠空白）。
+// 曾踩坑：快速路径漏了 normalizeText，扫描件 OCR 垃圾层的 NUL 进 chunk →
+// PostgreSQL text 拒绝 0x00（SQLSTATE 22021），GB 50010-2010 全篇入不了库。
+// 断言用 \r 做探针：fork 对 base-14 字体把 NUL 映射成 U+FFFD（不是 \x00），但 \r
+// 会原样透传——若 normalizeText 未被调用，块内容会残留 \r（快路径回归即触发）。
+func TestParsePDF_FastPathNormalized(t *testing.T) {
+	data, err := buildTestPDF("A\x00B\rC")
+	if err != nil {
+		t.Fatalf("生成测试 PDF 失败: %v", err)
+	}
+
+	doc, err := parser.ParsePDF(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("ParsePDF 失败: %v", err)
+	}
+
+	// 无表格无公式 → 每页一个 BlockText 块（走 pageText 快速路径）
+	if len(doc.Blocks) != 1 || len(doc.Blocks[0]) != 1 || doc.Blocks[0][0].Kind != parser.BlockText {
+		t.Fatalf("应走快速路径（单文本块）: %+v", doc.Blocks)
+	}
+	content := doc.Blocks[0][0].Content
+	if strings.Contains(content, "\x00") {
+		t.Fatalf("块内容含 NUL 字节（PG 22021 元凶）: %q", content)
+	}
+	if strings.Contains(content, "\r") {
+		t.Fatalf("块内容含 \\r（说明未过 normalizeText）: %q", content)
+	}
+}
+
 // TestParsePDF_TrailingJunk 模拟知网（CNKI）论文：%%EOF 之后追加 XML 元数据，
 // 解析库会报 missing %%EOF，parser 应在解析前容错截断。
 func TestParsePDF_TrailingJunk(t *testing.T) {
