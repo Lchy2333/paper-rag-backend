@@ -178,6 +178,15 @@ func (m *rerankMockStore) Search(ctx context.Context, query []float32, topK int,
 
 var _ store.Store = (*rerankMockStore)(nil)
 
+// 异步摄入队列的桩实现（rerank 测试不关心队列行为，返回"队列空"即可）。
+func (m *rerankMockStore) ClaimPendingTask(ctx context.Context) (*model.Document, error) {
+	return nil, nil
+}
+
+func (m *rerankMockStore) ResetProcessingTasks(ctx context.Context) (int, error) {
+	return 0, nil
+}
+
 // newEmbedMock 起一个返回固定向量的 OpenAI 兼容 /embeddings 假服务。
 func newEmbedMock(t *testing.T) *httptest.Server {
 	t.Helper()

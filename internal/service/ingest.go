@@ -149,9 +149,11 @@ func (s *IngestService) Rechunk(ctx context.Context, id string, opts *model.Inge
 	return doc, nil
 }
 
-// Process 处理一个上传的文件并返回入库后的文档。
+// Accept 接收一个上传文件：校验 → 落盘 → 去重 → 建 pending 记录（即入队）。
+// 是摄入流水线的同步段：只做快活（毫秒级），慢活（解析/OCR/向量化）全部留给 worker 异步执行。
+// 处理进度由前端轮询 GET /documents/:id 的 status 字段（pending → processing → ready/failed）。
 // opts 可携带文档级分块参数（chunk_size/chunk_overlap），nil 字段回退到 config.yaml 的 rag 默认。
-func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error) {
+func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	if ext != ".pdf" {
 		return nil, ErrUnsupportedType
@@ -161,7 +163,7 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		return nil, fmt.Errorf("创建上传目录失败: %w", err)
 	}
 
-	// 解析文档级分块参数（缺省用全局默认）；校验失败直接拒绝
+	// 解析文档级分块参数（缺省用全局默认）；校验失败直接拒绝（用户错误当场反馈）
 	cfg, err := resolveChunkConfig(s.chunkCfg, opts)
 	if err != nil {
 		return nil, err
@@ -178,10 +180,10 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		CreatedAt:    time.Now(),
 	}
 
-	// 任务级 logger：本文档所有阶段日志都带 doc_id，方便跨阶段/将来异步对账
+	// 任务级 logger：本文档所有阶段日志都带 doc_id，跨同步/异步两段串联整条链路
 	l := logger.With("doc_id", doc.ID, "file", filename)
-	l.Info("ingest.start", "size_bytes", size, "ext", ext, "chunk_size", cfg.Size, "chunk_overlap", cfg.Overlap)
 	start := time.Now()
+	l.Info("ingest.accept", "size_bytes", size, "chunk_size", cfg.Size, "chunk_overlap", cfg.Overlap)
 
 	// 1. 落盘保存原始文件，同时计算内容哈希（SHA-256）用于去重
 	diskPath := filepath.Join(s.uploadDir, doc.ID+ext)
@@ -203,7 +205,10 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 
 	// 1.5 去重：内容哈希已存在则跳过（删除刚落盘的文件）。
 	// 注意：仅当已有文档不是 failed 时才视为重复——失败文档说明内容从未入库，
-	// 允许重新上传重试。
+	// 允许重新上传重试。去重留在同步段，重复当场反馈、不入队。
+	// ⚠️ 已知遗留（2026-10，见避坑 #14）："先查后插"非原子 + status!='failed' 判据过窄——
+	//   ① 两请求并发传同内容 → 第二个撞唯一索引报 500；② 卡在 pending/processing 的文档
+	//   chunk_count=0 却被判重复。待办：store.ClaimUpload（事务+咨询锁+chunk_count 判据）。
 	existing, err := s.store.FindByContentHash(ctx, doc.ContentHash)
 	if err != nil {
 		return nil, fmt.Errorf("检查重复文档失败: %w", err)
@@ -214,30 +219,82 @@ func (s *IngestService) Process(ctx context.Context, file io.ReaderAt, size int6
 		return existing, ErrDuplicateDocument
 	}
 
-	// 2-4. 解析 → 分块 → 公式OCR → 向量化 → 组装（与 Rechunk 共用同一流水线）
-	models, err := s.buildChunkModels(ctx, file, size, diskPath, filename, cfg, doc, l)
+	// 2. 建 pending 记录 = 入队（worker 的 ClaimPendingTask 靠 status='pending' 抢单）
+	if err := s.store.SaveDocument(ctx, doc); err != nil {
+		l.Error("store.save_document_failed", "err", err)
+		return nil, fmt.Errorf("保存文档记录失败: %w", err)
+	}
+	l.Info("ingest.queued", "duration_ms", time.Since(start).Milliseconds())
+	return doc, nil
+}
+
+// Run 执行摄入流水线的异步段：从磁盘读 PDF → 清残留 → 解析/分块/公式OCR/向量化 → 入库。
+// 由 worker 在 ClaimPendingTask 抢单后调用（此时 status=processing）。
+// ctx 是 worker 给的任务级 context（不随上传请求断连取消）。
+//
+// 幂等性：开工先无条件 DeleteChunks 清场——上次崩溃可能停在
+// "AddChunks 已写库、status 还没改 ready" 的中间态，重跑直接 AddChunks 会插入重复 chunk
+// （chunk 主键是新 ID，无唯一约束拦不住）。删旧重写后，本函数可安全重入。
+func (s *IngestService) Run(ctx context.Context, docID string) error {
+	doc, err := s.store.GetDocument(ctx, docID)
 	if err != nil {
-		s.fail(doc, err.Error())
-		return doc, err
+		return err
+	}
+	if doc == nil {
+		return ErrDocumentNotFound
 	}
 
-	// 5. 入库：先存文档（chunks 外键依赖它），再存分块，最后更新文档为 ready
-	if err := s.store.SaveDocument(ctx, doc); err != nil {
-		l.Error("store.save_document_failed", "status", doc.Status, "err", err)
-		return doc, err
+	// 上传时 Accept 只收 .pdf，磁盘文件名固定为 {ID}.pdf（与 Rechunk 同款约定）
+	diskPath := filepath.Join(s.uploadDir, doc.ID+".pdf")
+	f, err := os.Open(diskPath)
+	if err != nil {
+		s.fail(doc, fmt.Sprintf("原始 PDF 文件不存在（%v）", err))
+		return fmt.Errorf("原始 PDF 文件不存在: %w", err)
 	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("读取文件信息失败: %w", err)
+	}
+
+	l := logger.With("doc_id", doc.ID, "file", doc.Filename)
+
+	// 分块参数：Accept 时已写进文档记录，直接沿用（老数据 0 回退全局默认）
+	cfg := chunker.ChunkConfig{Size: doc.ChunkSize, Overlap: doc.ChunkOverlap}
+	if cfg.Size <= 0 {
+		cfg = s.chunkCfg
+	}
+
+	start := time.Now()
+	l.Info("ingest.start", "size_bytes", doc.SizeBytes, "chunk_size", cfg.Size, "chunk_overlap", cfg.Overlap)
+
+	// 幂等清场：清掉上次崩溃可能留下的半成品 chunks（正常情况是空删 no-op）
+	if err := s.store.DeleteChunks(ctx, doc.ID); err != nil {
+		l.Error("store.delete_chunks_failed", "err", err)
+		return fmt.Errorf("清理旧分块失败: %w", err)
+	}
+
+	// 解析 → 分块 → 公式OCR → 向量化 → 组装（与 Rechunk 共用同一流水线）
+	models, err := s.buildChunkModels(ctx, f, fi.Size(), diskPath, doc.Filename, cfg, doc, l)
+	if err != nil {
+		s.fail(doc, err.Error())
+		return err
+	}
+
+	// 入库：Accept 阶段已存 pending 记录（chunks 外键依赖已满足），写 chunks 后更新为 ready
 	if err := s.store.AddChunks(ctx, models); err != nil {
 		l.Error("store.add_chunks_failed", "chunks", len(models), "err", err)
 		s.fail(doc, fmt.Sprintf("入库失败: %v", err))
-		return doc, err
+		return err
 	}
 	doc.ChunkCount = len(models)
 	doc.Status = "ready"
+	doc.Error = ""
 	if err := s.store.SaveDocument(ctx, doc); err != nil {
-		return doc, err
+		return err
 	}
 	l.Info("ingest.done", "chunks", doc.ChunkCount, "pages", doc.PageCount, "duration_ms", time.Since(start).Milliseconds())
-	return doc, nil
+	return nil
 }
 
 // buildChunkModels 执行核心流水线：解析 → 分块 → 公式OCR → 向量化 → 组装带向量的分块模型。

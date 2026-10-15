@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"paper-rag-backend/internal/httpapi"
@@ -17,22 +18,23 @@ import (
 )
 
 // fakeIngester 是 documentService 的假实现，用于测试 HTTP 层。
+// Accept 语义（异步摄入）：成功 = 已接收（status=pending），失败 = 未建记录（nil, err）。
 type fakeIngester struct {
 	errs map[string]error
 	dups map[string]error
 }
 
-func (f *fakeIngester) Process(_ context.Context, _ io.ReaderAt, size int64, filename string, _ *model.IngestOptions) (*model.Document, error) {
+func (f *fakeIngester) Accept(_ context.Context, _ io.ReaderAt, size int64, filename string, _ *model.IngestOptions) (*model.Document, error) {
 	if f.dups != nil {
 		if _, ok := f.dups[filename]; ok {
 			// 模拟"已有同内容文档"：返回库中存在的文档 + 重复错误
-			return &model.Document{ID: "exist-" + filename, Filename: filename, Status: "ready", PageCount: 9, SizeBytes: size}, service.ErrDuplicateDocument
+			return &model.Document{ID: "exist-" + filename, Filename: filename, Status: "ready", SizeBytes: size}, service.ErrDuplicateDocument
 		}
 	}
 	if err, ok := f.errs[filename]; ok {
-		return &model.Document{ID: "fail-" + filename, Filename: filename, Status: "failed", Error: err.Error(), SizeBytes: size}, err
+		return nil, err // 接收段失败：无记录
 	}
-	return &model.Document{ID: "ok-" + filename, Filename: filename, Status: "ready", PageCount: 5, SizeBytes: size}, nil
+	return &model.Document{ID: "ok-" + filename, Filename: filename, Status: "pending", SizeBytes: size}, nil
 }
 
 func (f *fakeIngester) Rechunk(_ context.Context, id string, _ *model.IngestOptions) (*model.Document, error) {
@@ -45,7 +47,7 @@ func (f *fakeIngester) Delete(context.Context, string) error                 { r
 
 func TestHandler_UploadMultipleFiles(t *testing.T) {
 	ingester := &fakeIngester{errs: map[string]error{"bad.pdf": errors.New("PDF 解析失败: test")}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -90,6 +92,9 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 		if !byName[name].Success || byName[name].DocumentID == "" {
 			t.Fatalf("%s 应成功: %+v", name, byName[name])
 		}
+		if byName[name].Status != "pending" {
+			t.Fatalf("%s 接收成功后 status 应为 pending: %+v", name, byName[name])
+		}
 	}
 	if byName["bad.pdf"].Success || byName["bad.pdf"].Error == "" {
 		t.Fatalf("bad.pdf 应失败且带原因: %+v", byName["bad.pdf"])
@@ -101,7 +106,7 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 
 func TestHandler_UploadDuplicate(t *testing.T) {
 	ingester := &fakeIngester{dups: map[string]error{"dup.pdf": service.ErrDuplicateDocument}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -142,7 +147,7 @@ func TestHandler_UploadDuplicate(t *testing.T) {
 }
 
 func TestHandler_UploadNoFile(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", bytes.NewBufferString("no file"))
@@ -155,6 +160,33 @@ func TestHandler_UploadNoFile(t *testing.T) {
 	}
 }
 
+// 上传接收成功后应按门铃唤醒 worker（每个新入队文件一次）。
+func TestHandler_UploadKicksIngest(t *testing.T) {
+	var kicks int32
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, func() { atomic.AddInt32(&kicks, 1) })
+	r := httpapi.NewRouter(h, "")
+
+	body := &bytes.Buffer{}
+	w := multipart.NewWriter(body)
+	for _, name := range []string{"a.pdf", "b.pdf", "c.pdf"} {
+		fw, _ := w.CreateFormFile("file", name)
+		_, _ = fw.Write([]byte("%PDF-1.4 fake " + name))
+	}
+	_ = w.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", body)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got := atomic.LoadInt32(&kicks); got != 3 {
+		t.Fatalf("门铃次数 = %d, want 3（每个新入队文件按一次）", got)
+	}
+}
+
 // fakeTester 是 connectionTester 的假实现。
 type fakeTester struct{}
 
@@ -163,7 +195,7 @@ func (f *fakeTester) TestConnection(_ context.Context, req model.ConnectionTest)
 }
 
 func TestHandler_ConnectionTest(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"kind":"embedding","base_url":"http://example.com/v1","api_key":"x","model":"bge-m3"}`
@@ -185,7 +217,7 @@ func TestHandler_ConnectionTest(t *testing.T) {
 }
 
 func TestHandler_RechunkDocument(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"chunk_size":400,"chunk_overlap":50}`
@@ -209,7 +241,7 @@ func TestHandler_RechunkDocument(t *testing.T) {
 }
 
 func TestHandler_RechunkDocumentBadJSON(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents/abc/rechunk", bytes.NewBufferString(`{"chunk_size":}`))

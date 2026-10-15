@@ -84,6 +84,9 @@ rag:
   chunk_overlap: 150
   top_k: 5
   similarity_threshold: 0.0
+  # 异步摄入 worker 数（= 解析/OCR/向量化流水线的并发上限，天然限流），默认 2。
+  # 上传接口只做接收段秒回，慢活由这些 worker 异步处理（见 AGENTS.md「异步摄入实现备忘」）。
+  ingest_workers: 2
   # 检索不到相关内容时的兜底回复
   no_context_reply: "抱歉，在已上传的文档中没有找到与您问题相关的内容。"
 

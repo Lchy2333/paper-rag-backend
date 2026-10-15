@@ -451,14 +451,14 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 		}
 	}
 
-	// 2) 逐个摄入
+	// 2) 逐个摄入（eval 是批处理脚本：同步执行"接收 + 异步段"，不经过 worker）
 	for _, f := range pdfs {
 		fh, err := os.Open(f)
 		if err != nil {
 			return nil, fmt.Errorf("打开 %s: %w", f, err)
 		}
 		st, _ := fh.Stat()
-		doc, err := ingest.Process(ctx, fh, st.Size(), filepath.Base(f), nil)
+		doc, err := ingest.Accept(ctx, fh, st.Size(), filepath.Base(f), nil)
 		fh.Close()
 		item := IngestFileResult{Filename: filepath.Base(f)}
 		if err != nil {
@@ -466,13 +466,21 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 				item.Status = "skipped-duplicate"
 				item.DocumentID = doc.ID
 			} else {
-				return nil, fmt.Errorf("摄入 %s 失败: %w", filepath.Base(f), err)
+				return nil, fmt.Errorf("接收 %s 失败: %w", filepath.Base(f), err)
 			}
 		} else {
+			if err := ingest.Run(ctx, doc.ID); err != nil {
+				return nil, fmt.Errorf("摄入 %s 失败: %w", filepath.Base(f), err)
+			}
+			// Run 更新的是库里的记录，取回入库后的元数据（页数/chunk 数）
+			done, err := ingest.Get(ctx, doc.ID)
+			if err != nil || done == nil {
+				return nil, fmt.Errorf("回查 %s 失败: %v", filepath.Base(f), err)
+			}
 			item.Status = "ingested"
-			item.DocumentID = doc.ID
-			item.Pages = doc.PageCount
-			item.Chunks = doc.ChunkCount
+			item.DocumentID = done.ID
+			item.Pages = done.PageCount
+			item.Chunks = done.ChunkCount
 		}
 		out.Files = append(out.Files, item)
 	}

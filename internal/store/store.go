@@ -60,6 +60,15 @@ type Store interface {
 	// Search 返回与 query 最相似的 topK 个片段（按余弦相似度降序）。
 	// opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
 	Search(ctx context.Context, query []float32, topK int, threshold float32, opts SearchOptions) ([]SearchResult, error)
+
+	// ---- 异步摄入队列（详见 AGENTS.md「异步摄入实现备忘」） ----
+	// ClaimPendingTask 原子领取一条待处理文档（status: pending → processing）。
+	// 内部用 FOR UPDATE SKIP LOCKED：多 worker/多实例并发抢单互不阻塞、不重复领同一单。
+	// 队列空时返回 (nil, nil)，不是错误。
+	ClaimPendingTask(ctx context.Context) (*model.Document, error)
+	// ResetProcessingTasks 把所有 processing 状态的文档重置回 pending。
+	// 用途：启动恢复（上次进程硬崩留下的悬案）与停机宽限超时的善后。返回重置条数。
+	ResetProcessingTasks(ctx context.Context) (int, error)
 }
 
 // CosineSimilarity 计算两个向量的余弦相似度。

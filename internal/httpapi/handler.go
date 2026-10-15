@@ -21,8 +21,10 @@ import (
 
 // documentService 是 Handler 对文档服务的依赖抽象，由 main 注入 *service.IngestService。
 // 抽象成接口便于对 HTTP 层做单测（用假实现替换真实服务）。
+// Accept 是摄入的同步段（校验/落盘/去重/建 pending 记录，秒回）；
+// 慢活（解析/OCR/向量化）由 worker 异步执行，前端轮询 GET /documents/:id 看 status。
 type documentService interface {
-	Process(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error)
+	Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error)
 	Rechunk(ctx context.Context, id string, opts *model.IngestOptions) (*model.Document, error)
 	Get(ctx context.Context, id string) (*model.Document, error)
 	List(ctx context.Context) ([]model.Document, error)
@@ -41,16 +43,20 @@ type Handler struct {
 	search         *service.SearchService
 	tester         connectionTester
 	maxUploadBytes int64
+	// notifyIngest 摄入门铃：Accept 成功入队后唤醒 worker 立刻抢单（worker.Pool.Kick）。
+	// 可为 nil（本地无 worker 场景/单测），nil 时不按铃，靠 worker 兜底轮询。
+	notifyIngest func()
 }
 
 // NewHandler 创建处理器。
-func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64) *Handler {
+func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64, notifyIngest func()) *Handler {
 	return &Handler{
 		ingest:         ingest,
 		ask:            ask,
 		search:         search,
 		tester:         tester,
 		maxUploadBytes: maxUploadMB * 1024 * 1024,
+		notifyIngest:   notifyIngest,
 	}
 }
 
@@ -59,8 +65,10 @@ func (h *Handler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 }
 
-// UploadDocument 上传并摄入一个或多个 PDF 文档。
-// 逐个处理、互不影响：单个文件失败只标记该条结果，不拖累其他文件。
+// UploadDocument 上传一个或多个 PDF 文档（**异步摄入语义**，2026-10 起）：
+// 只做接收段（校验/落盘/去重/建 pending 记录）秒回，慢活（解析/OCR/向量化）由后台 worker
+// 异步执行；前端拿 document_id 轮询 GET /documents/:id 的 status（pending→processing→ready/failed）。
+// 逐个接收、互不影响：单个文件失败只标记该条结果，不拖累其他文件。
 // 统一返回 200 + 逐条带状态的 results，便于批量查看。
 // 可选的表单字段（作用于本次上传的全部文件）：
 //
@@ -106,27 +114,30 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 			continue
 		}
 		logger.Debug("upload.file_start", "file", fh.Filename, "size_bytes", fh.Size)
-		doc, perr := h.ingest.Process(c.Request.Context(), f, fh.Size, fh.Filename, opts)
+		doc, perr := h.ingest.Accept(c.Request.Context(), f, fh.Size, fh.Filename, opts)
 		_ = f.Close()
 		r.DurationMS = time.Since(start).Milliseconds()
 
-	if doc != nil {
-		r.DocumentID = doc.ID
-		r.PageCount = doc.PageCount
-	}
-	if perr != nil {
-		if errors.Is(perr, service.ErrDuplicateDocument) {
-			r.Duplicate = true
-			r.Error = perr.Error()
-			duplicates++
-		} else {
-			r.Error = perr.Error()
-			failed++
+		if doc != nil {
+			r.DocumentID = doc.ID
+			r.Status = doc.Status // 接收成功 = "pending"（异步处理中）；重复 = 已有文档状态
 		}
-	} else {
-		r.Success = true
-		success++
-	}
+		if perr != nil {
+			if errors.Is(perr, service.ErrDuplicateDocument) {
+				r.Duplicate = true
+				r.Error = perr.Error()
+				duplicates++
+			} else {
+				r.Error = perr.Error()
+				failed++
+			}
+		} else {
+			r.Success = true // 语义：已接收并入队（处理进度看文档 status）
+			success++
+			if h.notifyIngest != nil {
+				h.notifyIngest() // 按门铃：唤醒 worker 立刻抢单
+			}
+		}
 	logger.Debug("upload.file_done", "file", fh.Filename, "success", r.Success, "duplicate", r.Duplicate,
 		"doc_id", r.DocumentID, "duration_ms", r.DurationMS, "err", r.Error)
 	results = append(results, r)

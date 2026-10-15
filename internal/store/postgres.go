@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -70,7 +71,8 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 			status = EXCLUDED.status,
 			error = EXCLUDED.error,
 			chunk_size = EXCLUDED.chunk_size,
-			chunk_overlap = EXCLUDED.chunk_overlap`,
+			chunk_overlap = EXCLUDED.chunk_overlap,
+			updated_at = now()`,
 		doc.ID, doc.UserID, doc.Filename, doc.Title, doc.PageCount, doc.SizeBytes,
 		doc.ChunkCount, doc.Status, doc.Error, doc.ContentHash, doc.ChunkSize, doc.ChunkOverlap, doc.CreatedAt,
 	)
@@ -151,6 +153,57 @@ func (s *PostgresStore) DeleteChunks(ctx context.Context, documentID string) err
 		return fmt.Errorf("删除分块失败: %w", err)
 	}
 	return nil
+}
+
+// ClaimPendingTask 原子领取一条待处理文档（pending → processing）。
+//
+// 抢单 SQL 是一条语句（子查询 FOR UPDATE SKIP LOCKED + UPDATE + RETURNING），
+// 查/锁/改原子完成，多 worker 并发不存在"同时领到同一单"的时间窗：
+//   - 被别的事务锁住的行 → SKIP LOCKED 直接跳过（不等待）
+//   - 已提交为 processing 的行 → WHERE status='pending' 天然过滤
+//
+// 行锁只保护"抢单瞬间"（语句提交即释放）；之后的防重复靠已提交的 status。
+// 队列空时 UPDATE 命中 0 行 → RETURNING 空 → 返回 (nil, nil)（worker 的"回去睡觉"信号）。
+func (s *PostgresStore) ClaimPendingTask(ctx context.Context) (*model.Document, error) {
+	var id string
+	err := s.pool.QueryRow(ctx, `
+		UPDATE documents
+		SET status = 'processing', updated_at = now()
+		WHERE id = (
+			SELECT id FROM documents
+			WHERE status = 'pending'
+			ORDER BY created_at   -- 表无内建顺序，FIFO 必须显式排
+			FOR UPDATE SKIP LOCKED
+			LIMIT 1
+		)
+		RETURNING id`).Scan(&id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil // 队列空：正常信号，不是错误
+		}
+		return nil, fmt.Errorf("领取任务失败: %w", err)
+	}
+	// 抢单成功后取回完整文档（分块参数等）。status 已是 processing，无人会再动它。
+	doc, err := s.GetDocument(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		// 理论不可达（刚 UPDATE 过）；防御并发删除的极端情况
+		return nil, fmt.Errorf("领取的任务 %s 查询不到", id)
+	}
+	return doc, nil
+}
+
+// ResetProcessingTasks 把所有 processing 重置回 pending（启动恢复 / 停机宽限超时善后）。
+func (s *PostgresStore) ResetProcessingTasks(ctx context.Context) (int, error) {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE documents SET status = 'pending', updated_at = now()
+		WHERE status = 'processing'`)
+	if err != nil {
+		return 0, fmt.Errorf("重置处理中任务失败: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
 }
 
 // ---- 向量 ----

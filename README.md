@@ -112,13 +112,17 @@ go run ./cmd/server -config config/config.yaml
 
 ### 5. 使用
 
-**上传 PDF 并入库（支持一次多个，`-F` 可重复）**
+**上传 PDF（支持一次多个，`-F` 可重复）—— 异步摄入语义（2026-10 起）**
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/documents \
   -F "file=@paper-a.pdf" \
   -F "file=@paper-b.pdf"
 ```
+
+上传接口只做**接收段**（校验 / 落盘 / 去重 / 建 pending 记录）**秒回**；
+慢活（解析 / 公式 OCR / 向量化）由后台 worker 异步处理（`rag.ingest_workers` 控制并发，默认 2）。
+前端拿 `document_id` **轮询 `GET /documents/:id`** 看处理进度：`pending`（排队）→ `processing`（处理中）→ `ready`（可检索）/ `failed`（带 `error` 原因）。
 
 返回**逐条带状态**的结果（HTTP 恒为 200；单文件失败不影响其他文件）：
 
@@ -131,28 +135,40 @@ curl -X POST http://localhost:8080/api/v1/documents \
         {
             "filename": "paper-a.pdf",
             "success": true,
+            "status": "pending",
             "document_id": "xxx",
-            "page_count": 182,
+            "page_count": 0,
             "size_bytes": 12761948,
-            "duration_ms": 3500
+            "duration_ms": 45
         },
         {
             "filename": "paper-b.pdf",
             "success": false,
-            "document_id": "yyy",
-            "page_count": 0,
             "size_bytes": 5678,
-            "duration_ms": 120,
-            "error": "PDF 解析失败: ..."
+            "duration_ms": 3,
+            "error": "不支持的文件类型，仅支持 PDF"
         }
     ]
 }
 ```
 
-- `success: true` 的文件已入库，`document_id` 可用于后续指定文档检索
-- `success: false` 的文件带 `error` 说明原因，其他文件照常入库
+- `success: true` = **已接收并入队**（`status: "pending"`），处理中客户端断连不影响入库；
+  页数 / chunk 数入库后由 `GET /documents/:id` 返回（接收阶段未知，`page_count` 恒为 0）
+- `success: false` = 接收失败（校验不过 / 落盘失败），未建记录，带 `error` 说明原因
+- 处理失败的文档 `status: "failed"` 且 `error` 带原因；同内容允许重新上传重试
 
-**上传去重**：上传时对每个文件计算 SHA-256 并存入 `documents.content_hash`。若库中已有**内容相同**的文档（且非 `failed` 状态），该文件会被标记为 `duplicate: true` 并跳过，不会重复入库（`duplicate_count` 单独统计，不计入失败）：
+**轮询处理进度**：
+
+```bash
+curl http://localhost:8080/api/v1/documents/xxx
+# {"document": {"id": "xxx", "status": "processing", ...}}   → 还在处理
+# {"document": {"id": "xxx", "status": "ready", "chunk_count": 210, ...}}  → 可检索
+# {"document": {"id": "xxx", "status": "failed", "error": "...", ...}}     → 处理失败
+```
+
+> worker 崩溃恢复：进程重启时 `processing` 的文档自动重置回 `pending` 续跑（幂等清场，不产生重复 chunks）。
+
+**上传去重**：接收段对每个文件计算 SHA-256 并存入 `documents.content_hash`。若库中已有**内容相同**的文档（且非 `failed` 状态），该文件会被标记为 `duplicate: true` 并当场跳过（重复检查在同步段，不占队列）：
 
 ```json
 {
@@ -165,6 +181,7 @@ curl -X POST http://localhost:8080/api/v1/documents \
             "filename": "paper-a.pdf",
             "success": false,
             "duplicate": true,
+            "status": "ready",
             "document_id": "已有文档的 id",
             "error": "文档已存在（内容相同），已跳过重复上传"
         }
@@ -219,7 +236,7 @@ curl -X POST http://localhost:8080/api/v1/ask \
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查 |
 | POST | `/api/v1/connections/test` | 手动测试 LLM 连通性（用户自带模型时先验证再配置） |
-| POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复），逐个解析并向量化入库 |
+| POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复）。**异步摄入**：接收段秒回（去重/校验当场反馈），解析/向量化由后台 worker 处理，轮询 `GET /documents/:id` 看 status |
 | GET | `/api/v1/documents` | 列出全部文档 |
 | GET | `/api/v1/documents/:id` | 查询文档详情 |
 | POST | `/api/v1/documents/:id/rechunk` | 删除该文档全部 chunk 后用新分块参数重新分块入库 |
