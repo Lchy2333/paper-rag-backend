@@ -96,6 +96,9 @@ type RAGConfig struct {
 	TopK                int     `yaml:"top_k"`
 	SimilarityThreshold float32 `yaml:"similarity_threshold"`
 	NoContextReply      string  `yaml:"no_context_reply"`
+	// IngestWorkers 异步摄入 worker 数（= 流水线并发上限，天然限流），默认 2。
+	// 见 AGENTS.md「异步摄入实现备忘」。
+	IngestWorkers int `yaml:"ingest_workers"`
 }
 
 // DatabaseConfig 是 PostgreSQL 连接配置。
@@ -226,6 +229,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.RAG.TopK == 0 {
 		c.RAG.TopK = 5
+	}
+	if c.RAG.IngestWorkers == 0 {
+		c.RAG.IngestWorkers = 2
 	}
 	if c.Render.DPI == 0 {
 		c.Render.DPI = 150

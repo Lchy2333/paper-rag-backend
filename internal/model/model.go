@@ -72,12 +72,15 @@ type Question struct {
 }
 
 // UploadResult 是多文件上传时单个文件的处理结果。
+// 异步语义（2026-10 起）：Success = "已接收并入队"（status=pending），
+// 处理进度由前端轮询 GET /documents/:id 的 status 字段获取（pending/processing/ready/failed）。
 type UploadResult struct {
 	Filename   string `json:"filename"`
-	Success    bool   `json:"success"`
+	Success    bool   `json:"success"` // 已接收（异步处理中），非"已入库"
 	Duplicate  bool   `json:"duplicate,omitempty"` // 内容重复，已跳过（区别于失败）
 	DocumentID string `json:"document_id,omitempty"`
-	PageCount  int    `json:"page_count"`
+	Status     string `json:"status,omitempty"` // 接收成功时为 "pending"；重复时为已有文档状态
+	PageCount  int    `json:"page_count"` // 异步语义下接收阶段未知页数，恒为 0（入库后由文档详情返回）
 	SizeBytes  int64  `json:"size_bytes"`
 	DurationMS int64  `json:"duration_ms"`
 	Error      string `json:"error,omitempty"`

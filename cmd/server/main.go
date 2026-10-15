@@ -19,6 +19,7 @@ import (
 	"paper-rag-backend/internal/render"
 	"paper-rag-backend/internal/service"
 	"paper-rag-backend/internal/store"
+	"paper-rag-backend/internal/worker"
 )
 
 func main() {
@@ -53,7 +54,11 @@ func main() {
 	ingestSvc := service.NewIngestService(aiClient, storeImpl, cfg.Server, cfg.RAG, renderCfg)
 	askSvc := service.NewAskService(aiClient, storeImpl, cfg.RAG)
 	searchSvc := service.NewSearchService(aiClient, storeImpl, cfg.RAG)
-	handler := httpapi.NewHandler(ingestSvc, askSvc, searchSvc, aiClient, cfg.Server.MaxUploadSizeMB)
+
+	// 异步摄入工作池：DB（documents.status）当队列，channel 只当门铃。
+	// 上传接口 Accept 入队后调 pool.Kick 唤醒 worker 立刻抢单。
+	ingestPool := worker.NewPool(ingestSvc, storeImpl, cfg.RAG.IngestWorkers)
+	handler := httpapi.NewHandler(ingestSvc, askSvc, searchSvc, aiClient, cfg.Server.MaxUploadSizeMB, ingestPool.Kick)
 	router := httpapi.NewRouter(handler, cfg.Server.APIKey)
 
 	srv := &http.Server{
@@ -75,14 +80,28 @@ func main() {
 		}
 	}()
 
+	// 摄入 worker：先恢复（上次硬崩的 processing 悬案重置回 pending），再起池子
+	if n, err := ingestPool.Recover(); err != nil {
+		logger.Error("worker recover failed", "err", err)
+		os.Exit(1)
+	} else if n > 0 {
+		logger.Info("worker recover done", "reset_to_pending", n)
+	}
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	ingestPool.Start(workerCtx)
+
 	<-quit
 	logger.Info("shutdown signal received, graceful shutdown...")
 
+	// 先停 HTTP（不再接收新上传），再停 worker（停抢单 → 宽限在途 → 超时重置回 pending）
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
+	workerCancel()                         // worker 停止抢单
+	ingestPool.Drain(30 * time.Second)     // 宽限等在途任务；超时重置由下次启动续跑
 	logger.Info("server exited")
 }
 

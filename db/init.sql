@@ -22,12 +22,15 @@ CREATE TABLE IF NOT EXISTS documents (
     -- 文档级分块参数：入库时实际使用的值（0 = 老数据/未记录）。config.yaml 的 rag 仅作默认值。
     chunk_size   INTEGER NOT NULL DEFAULT 0,
     chunk_overlap INTEGER NOT NULL DEFAULT 0,
+    -- 状态最后变更时间（异步摄入队列可观测性：任务何时被领走/完成）
+    updated_at   TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2.2 老库迁移：已存在的 documents 表补分块参数列（幂等，可重复执行）
+-- 2.2 老库迁移：已存在的 documents 表补列（幂等，可重复执行）
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_size   INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_overlap INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ;
 
 -- 2.1 内容哈希去重：同一文件 SHA-256 唯一（failed 文档除外，允许重传重试）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash
