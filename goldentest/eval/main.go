@@ -438,13 +438,13 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 	for _, f := range pdfs {
 		want[filepath.Base(f)] = true
 	}
-	docs, err := ingest.List(ctx)
+	docs, err := ingest.List(ctx, "admin")
 	if err != nil {
 		return nil, fmt.Errorf("列出文档失败: %w", err)
 	}
 	for _, d := range docs {
 		if want[d.Filename] {
-			if err := ingest.Delete(ctx, d.ID); err != nil {
+			if err := ingest.Delete(ctx, d.ID, "admin"); err != nil {
 				return nil, fmt.Errorf("删除旧文档 %s 失败: %w", d.Filename, err)
 			}
 			out.DeletedOld++
@@ -458,7 +458,7 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 			return nil, fmt.Errorf("打开 %s: %w", f, err)
 		}
 		st, _ := fh.Stat()
-		doc, err := ingest.Accept(ctx, fh, st.Size(), filepath.Base(f), nil)
+		doc, err := ingest.Accept(ctx, fh, st.Size(), filepath.Base(f), "admin", nil)
 		fh.Close()
 		item := IngestFileResult{Filename: filepath.Base(f)}
 		if err != nil {
@@ -473,7 +473,7 @@ func ingestCorpus(ctx context.Context, cfg *config.Config, goldenDir string) (*I
 				return nil, fmt.Errorf("摄入 %s 失败: %w", filepath.Base(f), err)
 			}
 			// Run 更新的是库里的记录，取回入库后的元数据（页数/chunk 数）
-			done, err := ingest.Get(ctx, doc.ID)
+			done, err := ingest.Get(ctx, doc.ID, "admin")
 			if err != nil || done == nil {
 				return nil, fmt.Errorf("回查 %s 失败: %v", filepath.Base(f), err)
 			}

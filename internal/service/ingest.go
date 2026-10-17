@@ -43,9 +43,8 @@ func NewIngestService(c *ai.Client, s store.Store, cfg config.ServerConfig, rag 
 	}
 }
 
-// defaultOwnerUserID 是当前单用户模式的固定文档归属者。
-// 将来接入多用户后，应由登录态/鉴权中间件动态赋值。
-const defaultOwnerUserID = "local"
+// defaultOwnerUserID 已移除（2026-10）：多用户后文档归属一律由 X-User-ID 头
+// 经 handler 显式传入，不再有单用户兜底值。admin 为超级用户（作用域空 = 全库）。
 
 // ErrUnsupportedType 表示上传的文件类型不受支持。
 var ErrUnsupportedType = errors.New("不支持的文件类型，仅支持 PDF")
@@ -82,10 +81,11 @@ func resolveChunkConfig(base chunker.ChunkConfig, opts *model.IngestOptions) (ch
 }
 
 // Rechunk 删除文档的全部 chunk 后，用新的分块参数重新解析、分块、向量化并入库。
+// userID 为 "" 表示 admin 超级用户（不过滤归属）。
 // opts 为 nil 或字段为空时回退到文档当前使用的参数，再回退全局默认。
 // 失败时不删除已有 chunk（保持旧数据可用），仅返回错误。
-func (s *IngestService) Rechunk(ctx context.Context, id string, opts *model.IngestOptions) (*model.Document, error) {
-	doc, err := s.store.GetDocument(ctx, id)
+func (s *IngestService) Rechunk(ctx context.Context, id string, userID string, opts *model.IngestOptions) (*model.Document, error) {
+	doc, err := s.store.GetDocument(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,8 @@ func (s *IngestService) Rechunk(ctx context.Context, id string, opts *model.Inge
 // 是摄入流水线的同步段：只做快活（毫秒级），慢活（解析/OCR/向量化）全部留给 worker 异步执行。
 // 处理进度由前端轮询 GET /documents/:id 的 status 字段（pending → processing → ready/failed）。
 // opts 可携带文档级分块参数（chunk_size/chunk_overlap），nil 字段回退到 config.yaml 的 rag 默认。
-func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error) {
+// userID 由 handler 从 X-User-ID 头传入（必非空），作为文档归属。
+func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, userID string, opts *model.IngestOptions) (*model.Document, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	if ext != ".pdf" {
 		return nil, ErrUnsupportedType
@@ -171,7 +172,7 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 
 	doc := &model.Document{
 		ID:           newID(),
-		UserID:       defaultOwnerUserID,
+		UserID:       userID,
 		Filename:     filename,
 		Status:       "pending",
 		SizeBytes:    size,
@@ -209,7 +210,7 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 	// ⚠️ 已知遗留（2026-10，见避坑 #14）："先查后插"非原子 + status!='failed' 判据过窄——
 	//   ① 两请求并发传同内容 → 第二个撞唯一索引报 500；② 卡在 pending/processing 的文档
 	//   chunk_count=0 却被判重复。待办：store.ClaimUpload（事务+咨询锁+chunk_count 判据）。
-	existing, err := s.store.FindByContentHash(ctx, doc.ContentHash)
+	existing, err := s.store.FindByContentHash(ctx, doc.ContentHash, userID)
 	if err != nil {
 		return nil, fmt.Errorf("检查重复文档失败: %w", err)
 	}
@@ -236,7 +237,8 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 // "AddChunks 已写库、status 还没改 ready" 的中间态，重跑直接 AddChunks 会插入重复 chunk
 // （chunk 主键是新 ID，无唯一约束拦不住）。删旧重写后，本函数可安全重入。
 func (s *IngestService) Run(ctx context.Context, docID string) error {
-	doc, err := s.store.GetDocument(ctx, docID)
+	// worker 内部操作（摄入流水线异步段），不受用户归属过滤——传空串 = 全库
+	doc, err := s.store.GetDocument(ctx, docID, "")
 	if err != nil {
 		return err
 	}
@@ -405,19 +407,25 @@ func (s *IngestService) fail(doc *model.Document, msg string) {
 	_ = s.store.SaveDocument(context.Background(), doc)
 }
 
-// Get 查询文档详情。
-func (s *IngestService) Get(ctx context.Context, id string) (*model.Document, error) {
-	return s.store.GetDocument(ctx, id)
+// Get 查询文档详情（校验归属；userID 为 "" = admin，不过滤）。
+func (s *IngestService) Get(ctx context.Context, id string, userID string) (*model.Document, error) {
+	return s.store.GetDocument(ctx, id, userID)
 }
 
-// List 列出所有文档。
-func (s *IngestService) List(ctx context.Context) ([]model.Document, error) {
-	return s.store.ListDocuments(ctx)
+// List 列出文档（userID 为 "" = admin 看全库；否则只列自己的）。
+func (s *IngestService) List(ctx context.Context, userID string) ([]model.Document, error) {
+	return s.store.ListDocuments(ctx, userID)
 }
 
-// Delete 删除文档及其向量。
-func (s *IngestService) Delete(ctx context.Context, id string) error {
-	return s.store.DeleteDocument(ctx, id)
+// Delete 删除文档及其向量（校验归属；userID 为 "" = admin，可删任何文档）。
+func (s *IngestService) Delete(ctx context.Context, id string, userID string) error {
+	if err := s.store.DeleteDocument(ctx, id, userID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return ErrDocumentNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 // countBlocks 统计块流里的块总数（含公式/表格/正文）。

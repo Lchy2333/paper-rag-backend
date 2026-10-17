@@ -3,6 +3,7 @@ package httpapi
 import (
 	"crypto/subtle"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +27,24 @@ func APIKeyAuth(requiredKey string) gin.HandlerFunc {
 			})
 			return
 		}
+		c.Next()
+	}
+}
+
+// UserContext 用户身份中间件：从 X-User-ID 头取归属者注入 context。
+//
+// 信任链：Agent 认证（JWT）→ 注入 X-User-ID 头 → 本中间件 → c.GetString("user_id")。
+// 多用户后所有文档都必须有归属，因此缺失 X-User-ID 直接 401（不做 "local" 兜底）。
+func UserContext() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uid := strings.TrimSpace(c.GetHeader("X-User-ID"))
+		if uid == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "missing X-User-ID header",
+			})
+			return
+		}
+		c.Set("user_id", uid)
 		c.Next()
 	}
 }

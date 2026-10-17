@@ -6,6 +6,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"math"
 
 	"paper-rag-backend/internal/model"
@@ -33,6 +34,9 @@ type SearchOptions struct {
 	QueryText string
 }
 
+// ErrNotFound 表示按条件查不到/删不到记录（文档不存在，或无权访问该文档）。
+var ErrNotFound = errors.New("not found")
+
 // Search 返回与 query 最相似的 topK 个片段（按余弦相似度降序）。
 // opts 可限定文档范围（DocIDs）与归属用户（UserID），为空则不过滤。
 // 内部实现采用两阶段检索：
@@ -45,13 +49,14 @@ type SearchOptions struct {
 // 偏少——不是没有，而是没扫到。两阶段策略把"尽量多捞"和"精确过滤"解耦。
 type Store interface {
 	// ---- 文档元数据 ----
+	// userID 限定归属；为空 = 不过滤（admin 超级用户场景）。
 	SaveDocument(ctx context.Context, doc *model.Document) error
 
-	GetDocument(ctx context.Context, id string) (*model.Document, error)
-	ListDocuments(ctx context.Context) ([]model.Document, error)
-	DeleteDocument(ctx context.Context, id string) error
-	// FindByContentHash 按内容哈希（文件 SHA-256）查找文档，用于上传去重；找不到返回 nil。
-	FindByContentHash(ctx context.Context, hash string) (*model.Document, error)
+	GetDocument(ctx context.Context, id string, userID string) (*model.Document, error)
+	ListDocuments(ctx context.Context, userID string) ([]model.Document, error)
+	DeleteDocument(ctx context.Context, id string, userID string) error
+	// FindByContentHash 按内容哈希查找文档，用于上传去重（限定归属用户）；找不到返回 nil。
+	FindByContentHash(ctx context.Context, hash string, userID string) (*model.Document, error)
 
 	// ---- 向量 ----
 	AddChunks(ctx context.Context, chunks []model.Chunk) error

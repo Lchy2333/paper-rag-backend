@@ -10,6 +10,9 @@ server:
   # 用法：设置环境变量 RAG_API_KEY，并把下行改为 api_key: "${RAG_API_KEY}"
   # 生成方式：python -c "import secrets; print(secrets.token_urlsafe(32))"
   api_key: ""
+  # 超级用户（Agent 的 user_id，通常是 UUID）：全库检索/管理，ask 仅限其调用。
+  # 例：admin_users: ["c38e2e80-....-...."]
+  admin_users: []
 
 log:
   # 日志级别：info（生产默认）/ debug（打开详细日志，含各阶段明细、公式 OCR 逐条结果）

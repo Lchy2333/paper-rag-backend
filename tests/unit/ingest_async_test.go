@@ -225,11 +225,11 @@ func (r *recordStore) AddChunks(ctx context.Context, chunks []model.Chunk) error
 	return nil
 }
 
-func (r *recordStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
+func (r *recordStore) FindByContentHash(ctx context.Context, hash string, userID string) (*model.Document, error) {
 	return r.byHash, nil
 }
 
-func (r *recordStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
+func (r *recordStore) GetDocument(ctx context.Context, id string, userID string) (*model.Document, error) {
 	return r.byID, nil
 }
 
@@ -254,7 +254,7 @@ func TestIngestService_AcceptQueuesPending(t *testing.T) {
 		render.Config{})
 
 	content := []byte("%PDF-1.4 fake content for test")
-	doc, err := svc.Accept(context.Background(), bytes.NewReader(content), int64(len(content)), "test.pdf", nil)
+	doc, err := svc.Accept(context.Background(), bytes.NewReader(content), int64(len(content)), "test.pdf", "admin", nil)
 	if err != nil {
 		t.Fatalf("Accept 失败: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestIngestService_AcceptDuplicate(t *testing.T) {
 	svc := newIngestSvc(t, rs)
 
 	content := []byte("%PDF-1.4 duplicate content")
-	doc, err := svc.Accept(context.Background(), bytes.NewReader(content), int64(len(content)), "dup.pdf", nil)
+	doc, err := svc.Accept(context.Background(), bytes.NewReader(content), int64(len(content)), "dup.pdf", "admin", nil)
 	if !errors.Is(err, service.ErrDuplicateDocument) {
 		t.Fatalf("应返回重复错误, got %v", err)
 	}
@@ -299,7 +299,7 @@ func TestIngestService_AcceptRejectsNonPDF(t *testing.T) {
 	rs := &recordStore{rerankMockStore: &rerankMockStore{}}
 	svc := newIngestSvc(t, rs)
 
-	if _, err := svc.Accept(context.Background(), bytes.NewReader([]byte("x")), 1, "a.txt", nil); !errors.Is(err, service.ErrUnsupportedType) {
+	if _, err := svc.Accept(context.Background(), bytes.NewReader([]byte("x")), 1, "a.txt", "admin", nil); !errors.Is(err, service.ErrUnsupportedType) {
 		t.Fatalf("应拒绝非 PDF, got %v", err)
 	}
 }

@@ -69,7 +69,7 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	// 2. 查询文档
-	got, err := s.GetDocument(ctx, docID)
+	got, err := s.GetDocument(ctx, docID, "local")
 	if err != nil || got == nil {
 		t.Fatalf("GetDocument 失败: %v (got=%v)", err, got)
 	}
@@ -84,11 +84,11 @@ func TestPostgresStore(t *testing.T) {
 	}
 
 	// 2.1 按内容哈希查找（上传去重）：命中 / 未命中
-	byHash, err := s.FindByContentHash(ctx, doc.ContentHash)
+	byHash, err := s.FindByContentHash(ctx, doc.ContentHash, "local")
 	if err != nil || byHash == nil || byHash.ID != docID {
 		t.Fatalf("FindByContentHash 应命中: err=%v byHash=%v", err, byHash)
 	}
-	miss, err := s.FindByContentHash(ctx, "no-such-hash")
+	miss, err := s.FindByContentHash(ctx, "no-such-hash", "local")
 	if err != nil || miss != nil {
 		t.Fatalf("FindByContentHash 未命中应返回 nil: err=%v miss=%v", err, miss)
 	}
@@ -212,7 +212,7 @@ func TestPostgresStore(t *testing.T) {
 	if err := s.AddChunks(ctx, []model.Chunk{otherChunk}); err != nil {
 		t.Fatalf("AddChunks(他人) 失败: %v", err)
 	}
-	defer s.DeleteDocument(ctx, otherDocID)
+	defer s.DeleteDocument(ctx, otherDocID, "")
 
 	// local 用户的混合检索（含全文路+字面路）不应返回他人的 chunk
 	filteredHybrid, err := s.Search(ctx, testVector1024(0), 5, 0, store.SearchOptions{
@@ -246,7 +246,7 @@ func TestPostgresStore(t *testing.T) {
 	// 清理公式 chunk（随文档删除级联清理）
 
 	// 5. 列表
-	docs, err := s.ListDocuments(ctx)
+	docs, err := s.ListDocuments(ctx, "")
 	if err != nil {
 		t.Fatalf("ListDocuments 失败: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestPostgresStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("插入 NULL 测试行失败: %v", err)
 	}
-	docs2, err := s.ListDocuments(ctx)
+	docs2, err := s.ListDocuments(ctx, "")
 	if err != nil {
 		t.Fatalf("ListDocuments 遇到 NULL 字段报错: %v", err)
 	}
@@ -283,15 +283,15 @@ func TestPostgresStore(t *testing.T) {
 			}
 		}
 	}
-	if err := s.DeleteDocument(ctx, nullDocID); err != nil {
+	if err := s.DeleteDocument(ctx, nullDocID, ""); err != nil {
 		t.Fatalf("清理 NULL 测试行失败: %v", err)
 	}
 
 	// 6. 删除文档（应级联删除 chunks）
-	if err := s.DeleteDocument(ctx, docID); err != nil {
+	if err := s.DeleteDocument(ctx, docID, "local"); err != nil {
 		t.Fatalf("DeleteDocument 失败: %v", err)
 	}
-	got2, _ := s.GetDocument(ctx, docID)
+	got2, _ := s.GetDocument(ctx, docID, "local")
 	if got2 != nil {
 		t.Fatalf("删除后文档仍存在")
 	}
@@ -313,7 +313,7 @@ func testVector1024(pos int) []float32 {
 }
 
 func cleanupPostgres(ctx context.Context, s store.Store, docID string) {
-	_ = s.DeleteDocument(ctx, docID)
+	_ = s.DeleteDocument(ctx, docID, "")
 }
 
 // containsChunk 判断检索结果是否包含指定 chunk ID。

@@ -51,7 +51,8 @@ type SearchResponse struct {
 // Search 对问题做向量检索（强制混合），返回结构化命中片段。
 // 与 AskService.Ask 共享 store.Search + 归属过滤，
 // **唯一区别是不调 ai.Chat**——把 LLM 生成上浮到 Agent。
-func (s *SearchService) Search(ctx context.Context, q model.Question) (*SearchResponse, error) {
+// userID 由 handler 从 X-User-ID 注入；"" 表示 admin（全库检索）。
+func (s *SearchService) Search(ctx context.Context, q model.Question, userID string) (*SearchResponse, error) {
 	start := time.Now()
 	logger.Debug("search.start", "query", truncate(q.Query, 120))
 
@@ -77,10 +78,6 @@ func (s *SearchService) Search(ctx context.Context, q model.Question) (*SearchRe
 		if p := s.ai.RerankPool(); p > pool {
 			pool = p
 		}
-	}
-	userID := q.UserID
-	if userID == "" {
-		userID = defaultOwnerUserID
 	}
 	searchStart := time.Now()
 	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{

@@ -168,7 +168,7 @@ curl http://localhost:8080/api/v1/documents/xxx
 
 > worker 崩溃恢复：进程重启时 `processing` 的文档自动重置回 `pending` 续跑（幂等清场，不产生重复 chunks）。
 
-**上传去重**：接收段对每个文件计算 SHA-256 并存入 `documents.content_hash`。若库中已有**内容相同**的文档（且非 `failed` 状态），该文件会被标记为 `duplicate: true` 并当场跳过（重复检查在同步段，不占队列）：
+**上传去重**：接收段对每个文件计算 SHA-256 并存入 `documents.content_hash`。若**同一用户**已上传**内容相同**的文档（且非 `failed` 状态），该文件会被标记为 `duplicate: true` 并当场跳过（重复检查在同步段，不占队列）：
 
 ```json
 {
@@ -191,15 +191,19 @@ curl http://localhost:8080/api/v1/documents/xxx
 
 > 说明：`failed` 状态的文档不参与去重（内容从未入库），允许重新上传重试。
 
-**旧库升级**（已有数据库需手动执行一次，新库执行 `db/init.sql` 已包含）：
+**旧库升级**（多用户迁移，2026-10；新库执行 `db/init.sql` 已包含全部）：
+- 去重索引由**全局** `(content_hash)` 改为**按用户** `(user_id, content_hash)`——用户 B 可上传用户 A 已有的相同文件（各自归属、各自分块参数）
+- 旧单用户模式的 `local` 归属已统一迁移为 `admin`；`documents.user_id` 默认值改 `'admin'`
 
 ```sql
-ALTER TABLE documents ADD COLUMN content_hash VARCHAR(64);
-CREATE UNIQUE INDEX idx_documents_content_hash ON documents(content_hash) WHERE status <> 'failed';
-ALTER TABLE documents ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'local';
+-- 旧库升级脚本（幂等）
+UPDATE documents SET user_id = 'admin' WHERE user_id = 'local';
+ALTER TABLE documents ALTER COLUMN user_id SET DEFAULT 'admin';
+DROP INDEX IF EXISTS idx_documents_content_hash;
+CREATE UNIQUE INDEX idx_documents_user_hash ON documents(user_id, content_hash) WHERE status <> 'failed';
 ```
 
-> `user_id` 为文档归属者，当前单用户模式固定为 `'local'`，为将来多用户权限隔离铺路（不做登录鉴权）。
+> `user_id` 为文档归属者，由 `X-User-ID` 头注入（Agent 认证后传递）；admin 为全库超级用户（`server.admin_users` 配置）。
 
 **针对文档提问（RAG）**
 
@@ -232,16 +236,24 @@ curl -X POST http://localhost:8080/api/v1/ask \
 
 ## API 一览
 
+> **鉴权**（除 `/health` 外全部接口）：
+> - `X-API-Key`：服务级鉴权（Agent → RAG），`config.yaml server.api_key`，空 = 开发模式不启用
+> - `X-User-ID`：用户身份（Agent 认证后注入），**缺失返回 401**；所有文档必须有归属
+>
+> **多用户隔离**：search / 文档 CRUD 按 `X-User-ID` 归属过滤；`server.admin_users` 配置的
+> 超级用户（Agent 的 user_id，通常是 UUID）不过滤（全库）；`ask` **仅管理员可调**。
+
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/health` | 健康检查 |
-| POST | `/api/v1/connections/test` | 手动测试 LLM 连通性（用户自带模型时先验证再配置） |
+| GET | `/api/v1/health` | 健康检查（豁免鉴权） |
+| POST | `/api/v1/connections/test` | 手动测试 LLM 连通性 |
 | POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复）。**异步摄入**：接收段秒回（去重/校验当场反馈），解析/向量化由后台 worker 处理，轮询 `GET /documents/:id` 看 status |
-| GET | `/api/v1/documents` | 列出全部文档 |
-| GET | `/api/v1/documents/:id` | 查询文档详情 |
+| GET | `/api/v1/documents` | 列出文档（普通用户只看自己的，admin 全库） |
+| GET | `/api/v1/documents/:id` | 查询文档详情（越权/不存在 404） |
 | POST | `/api/v1/documents/:id/rechunk` | 删除该文档全部 chunk 后用新分块参数重新分块入库 |
-| DELETE | `/api/v1/documents/:id` | 删除文档及向量（级联删除 chunks）|
-| POST | `/api/v1/ask` | 提问，返回基于检索片段的回答与引用 |
+| DELETE | `/api/v1/documents/:id` | 删除文档及向量（越权/不存在 404） |
+| POST | `/api/v1/ask` | 提问，返回基于检索片段的回答与引用（**仅管理员**，全局检索） |
+| POST | `/api/v1/search` | 纯检索（不调 LLM），按归属过滤，Agent 默认入口 |
 
 **上传时的可选分块参数**（作用于本次上传的全部文件，缺省用配置 `rag.chunk_size` / `rag.chunk_overlap`）：
 
@@ -275,19 +287,21 @@ curl -X POST http://localhost:8080/api/v1/connections/test \
   -d '{"kind": "chat", "base_url": "http://localhost:11434/v1", "api_key": "ollama", "model": "qwen3:8b"}'
 ```
 
-`/ask` 请求体：
+`/ask` / `/search` 请求体（**`user_id` 已从 body 移除**，改由 `X-User-ID` 头提供）：
 
 ```json
 {
     "query": "问题内容",
     "top_k": 5,
     "document_ids": ["doc-id-1", "doc-id-2"],
-    "user_id": "local",
     "rerank": true
 }
 ```
 
-`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`user_id` 可选（检索只命中该用户上传的文档，不传默认 `local`）；`rerank` 可选（请求级精排开关：**不传 = 跟随配置 `ai.rerank.enabled`**；`true` = 强制开启重排序（要求已配置 `ai.rerank.model`）；`false` = 强制关闭。适合临时对比/调试，不动配置）。`/search` 请求体同款。
+`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`rerank` 可选（请求级精排开关：**不传 = 跟随配置 `ai.rerank.enabled`**；`true` = 强制开启重排序（要求已配置 `ai.rerank.model`）；`false` = 强制关闭）。
+
+- **`/search`**：按 `X-User-ID` 归属过滤（admin 全库），Agent 默认入口
+- **`/ask`**：**仅 `server.admin_users` 命中的管理员可调**（否则 403），**全局检索**（不按用户过滤）——它是内部测试接口，不对普通用户暴露
 
 **指定文档对比提问**示例：先 `GET /api/v1/documents` 拿到两篇论文的 id，再限定范围提问：
 
@@ -377,9 +391,28 @@ go test ./tests/integration -run TestPostgresStore -v
 - **状态追踪**：文档 `pending / ready / failed` 三态，失败保留原因
 - **嵌入模型一致性**：文档与提问必须用同一 embedding 模型（同坐标系）；chat 模型可任意替换
 
-## 多租户演进设计（BYOK + 鉴权，待做）
+## 多租户演进设计（归属 + 隔离，✅ 已落地）
 
-> 记录"单用户 → 多租户"的演进方案。当前均**未实现**，已完成部分见下方表格。
+> 记录"单用户 → 多租户"的演进方案。BYOK 已取代，**归属 + 隔离部分已实现（2026-10）**。
+>
+> **⚠️ 2026-10 架构演进更新（/search-only）**：本节"每个用户自带 LLM 配置（BYOK）"的前提已不成立——
+> Agent 成为唯一调用方、只调 `/search`（不调 `/ask`）后，RAG 的 chat 模型上浮 Agent，RAG 只剩基础设施模型
+> （embedding bge-m3 / 公式 OCR qwen2.5vl / rerank bge-reranker），且 **embedding 被向量维度一致性强制全局**
+> （`chunks.embedding VECTOR(1024)` 必须与模型一致，无法按用户）。因此 **待做 ① `user_settings` 已被取代，不再实现**；
+> RAG 侧多租户只剩 **归属 + 隔离**（`user_id` 列 + `X-User-ID` 中间件 + 去重粒度 `(user_id, content_hash)`），不涉及新表。
+> 用户表只在 Agent 仓（users / threads），RAG 靠 user_id 契约关联（详见 Agent 仓 architecture.md §10）。
+
+**多用户归属 + 隔离（✅ 已实现 2026-10）**：
+
+| 项 | 说明 |
+|----|------|
+| `X-User-ID` 中间件 | `UserContext`：缺失 401；`c.Set("user_id")` 注入（`internal/httpapi/middleware.go`） |
+| admin 超级用户 | `config.yaml server.admin_users`（Agent 的 user_id，通常是 UUID）：search/文档 CRUD 不过滤（全库）；ask 仅其可调 |
+| 归属过滤 | search（`SearchOptions.UserID`）、文档 Get/List/Delete/Rechunk 全部按 user_id（store 层 `($2='' OR user_id=$2)`） |
+| 去重按用户 | `UNIQUE(user_id, content_hash)`（`db/init.sql`） |
+| body 的 user_id 移除 | `model.Question.UserID` 已删，只信 `X-User-ID` 头（修复"伪隔离"） |
+| ask 仅管理员 | 全局检索的内部测试接口，非 admin → 403 |
+| 历史数据迁移 | `local` → `admin`（`db/init.sql` UPDATE，幂等） |
 
 **背景**：当前单用户模式——`documents.user_id` 固定 `"local"`，模型配置全局一份（config.yaml），分块参数已支持文档级覆盖（上传/重分块请求体携带，缺省走 config.yaml 的 `rag` 默认）。
 
@@ -396,12 +429,12 @@ go test ./tests/integration -run TestPostgresStore -v
 | 重分块接口 | `POST /api/v1/documents/:id/rechunk`：删旧 chunk → 重新解析/分块/向量化 → 写新 |
 | 连接测试接口 | `POST /api/v1/connections/test`：`{kind, base_url, api_key, model}` 发一次最小请求，返回 ok/latency_ms/error；**含基础 SSRF 防护**（禁本机/内网/保留地址） |
 
-**待做 ① 用户 LLM 配置进数据库（BYOK）**
-- [ ] 新建 `user_settings` 表：`user_id, base_url, api_key, model, dimension, batch_size, chat_model, ...`
-- [ ] **api_key 必须加密存储**（对称加密，密钥走环境变量，禁止明文入库）
-- [ ] `ai.Client` 从"启动时建一个全局实例"改为"按用户动态获取"：`user_id → *ai.Client` 的 LRU 缓存池，避免每请求重建 http client；缓存未命中按该用户配置重建，无配置用户回退全局默认
-- [ ] 服务层/Handler 需要拿到当前用户身份（见待做 ②）才能选对 client
-- [ ] 连接测试接口改为可"测试已存配置"（不带 creds，用库里的）
+**待做 ① 用户 LLM 配置进数据库（BYOK）—— ⛔ 已被 /search-only 架构取代，不再实现**（见顶部演进更新）
+- ~~[ ] 新建 `user_settings` 表：`user_id, base_url, api_key, model, dimension, batch_size, chat_model, ...`~~
+- ~~[ ] **api_key 必须加密存储**（对称加密，密钥走环境变量，禁止明文入库）~~
+- ~~[ ] `ai.Client` 从"启动时建一个全局实例"改为"按用户动态获取"：`user_id → *ai.Client` 的 LRU 缓存池，避免每请求重建 http client；缓存未命中按该用户配置重建，无配置用户回退全局默认~~
+- ~~[ ] 服务层/Handler 需要拿到当前用户身份（见待做 ②）才能选对 client~~
+- ~~[ ] 连接测试接口改为可"测试已存配置"（不带 creds，用库里的）~~
 
 **待做 ② 鉴权中间件（多用户的前提）**
 - [ ] 登录/注册 + token（如 JWT），`/api/v1` 下加鉴权中间件
@@ -427,7 +460,7 @@ go test ./tests/integration -run TestPostgresStore -v
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
 
 ### P1：更"工业"
-- **多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）；连接测试接口已就绪。详见上文「多租户演进设计」
+- ~~**多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）；连接测试接口已就绪。详见上文「多租户演进设计」~~ ⛔ **2026-10 已被 /search-only 架构取代，不再实现**（RAG 只剩基础设施模型且 embedding 强制全局；多租户只剩归属+隔离，见该节顶部演进更新）
 - 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
 - **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 qwen2.5vl:7b 截图 OCR，复杂公式偶发结构错）
 - **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格

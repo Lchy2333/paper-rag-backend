@@ -17,7 +17,7 @@ func NewRouter(h *Handler, apiKey string) *gin.Engine {
 	r.GET("/api/v1/health", h.Health)
 
 	api := r.Group("/api/v1")
-	api.Use(APIKeyAuth(apiKey))
+	api.Use(APIKeyAuth(apiKey), UserContext())
 	{
 		// LLM 连接测试（用户手动验证自己的模型配置是否可用）
 		api.POST("/connections/test", h.TestConnection)
