@@ -24,7 +24,7 @@ type fakeIngester struct {
 	dups map[string]error
 }
 
-func (f *fakeIngester) Accept(_ context.Context, _ io.ReaderAt, size int64, filename string, _ *model.IngestOptions) (*model.Document, error) {
+func (f *fakeIngester) Accept(_ context.Context, _ io.ReaderAt, size int64, filename string, _ string, _ *model.IngestOptions) (*model.Document, error) {
 	if f.dups != nil {
 		if _, ok := f.dups[filename]; ok {
 			// 模拟"已有同内容文档"：返回库中存在的文档 + 重复错误
@@ -37,17 +37,17 @@ func (f *fakeIngester) Accept(_ context.Context, _ io.ReaderAt, size int64, file
 	return &model.Document{ID: "ok-" + filename, Filename: filename, Status: "pending", SizeBytes: size}, nil
 }
 
-func (f *fakeIngester) Rechunk(_ context.Context, id string, _ *model.IngestOptions) (*model.Document, error) {
+func (f *fakeIngester) Rechunk(_ context.Context, id string, _ string, _ *model.IngestOptions) (*model.Document, error) {
 	return &model.Document{ID: id, Filename: "rechunked.pdf", Status: "ready", ChunkCount: 7, ChunkSize: 400, ChunkOverlap: 50}, nil
 }
 
-func (f *fakeIngester) Get(context.Context, string) (*model.Document, error) { return nil, nil }
-func (f *fakeIngester) List(context.Context) ([]model.Document, error)       { return nil, nil }
-func (f *fakeIngester) Delete(context.Context, string) error                 { return nil }
+func (f *fakeIngester) Get(context.Context, string, string) (*model.Document, error) { return nil, nil }
+func (f *fakeIngester) List(context.Context, string) ([]model.Document, error)       { return nil, nil }
+func (f *fakeIngester) Delete(context.Context, string, string) error                 { return nil }
 
 func TestHandler_UploadMultipleFiles(t *testing.T) {
 	ingester := &fakeIngester{errs: map[string]error{"bad.pdf": errors.New("PDF 解析失败: test")}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -64,6 +64,7 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -106,7 +107,7 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 
 func TestHandler_UploadDuplicate(t *testing.T) {
 	ingester := &fakeIngester{dups: map[string]error{"dup.pdf": service.ErrDuplicateDocument}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil)
+	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -117,6 +118,7 @@ func TestHandler_UploadDuplicate(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -147,11 +149,12 @@ func TestHandler_UploadDuplicate(t *testing.T) {
 }
 
 func TestHandler_UploadNoFile(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", bytes.NewBufferString("no file"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -163,7 +166,7 @@ func TestHandler_UploadNoFile(t *testing.T) {
 // 上传接收成功后应按门铃唤醒 worker（每个新入队文件一次）。
 func TestHandler_UploadKicksIngest(t *testing.T) {
 	var kicks int32
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, func() { atomic.AddInt32(&kicks, 1) })
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, func() { atomic.AddInt32(&kicks, 1) }, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -176,6 +179,7 @@ func TestHandler_UploadKicksIngest(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -195,12 +199,13 @@ func (f *fakeTester) TestConnection(_ context.Context, req model.ConnectionTest)
 }
 
 func TestHandler_ConnectionTest(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"kind":"embedding","base_url":"http://example.com/v1","api_key":"x","model":"bge-m3"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/connections/test", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -217,12 +222,13 @@ func TestHandler_ConnectionTest(t *testing.T) {
 }
 
 func TestHandler_RechunkDocument(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"chunk_size":400,"chunk_overlap":50}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents/abc/rechunk", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -241,11 +247,12 @@ func TestHandler_RechunkDocument(t *testing.T) {
 }
 
 func TestHandler_RechunkDocumentBadJSON(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents/abc/rechunk", bytes.NewBufferString(`{"chunk_size":}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", "admin")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 

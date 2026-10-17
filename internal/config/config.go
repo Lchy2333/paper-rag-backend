@@ -37,6 +37,9 @@ type ServerConfig struct {
 	// APIKey 服务间鉴权密钥（Agent → RAG，请求头 X-API-Key）。
 	// 为空 = 不启用鉴权（本地开发模式）；生产建议环境变量注入（api_key: "${RAG_API_KEY}"）。
 	APIKey string `yaml:"api_key"`
+	// AdminUsers 超级用户列表（Agent 的 user_id，通常是 UUID）。
+	// 命中者为全库超级用户：search/文档 CRUD 不过滤归属，ask 仅限其调用。
+	AdminUsers []string `yaml:"admin_users"`
 }
 
 type AIConfig struct {

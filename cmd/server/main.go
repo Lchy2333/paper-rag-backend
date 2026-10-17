@@ -58,7 +58,7 @@ func main() {
 	// 异步摄入工作池：DB（documents.status）当队列，channel 只当门铃。
 	// 上传接口 Accept 入队后调 pool.Kick 唤醒 worker 立刻抢单。
 	ingestPool := worker.NewPool(ingestSvc, storeImpl, cfg.RAG.IngestWorkers)
-	handler := httpapi.NewHandler(ingestSvc, askSvc, searchSvc, aiClient, cfg.Server.MaxUploadSizeMB, ingestPool.Kick)
+	handler := httpapi.NewHandler(ingestSvc, askSvc, searchSvc, aiClient, cfg.Server.MaxUploadSizeMB, ingestPool.Kick, cfg.Server.AdminUsers)
 	router := httpapi.NewRouter(handler, cfg.Server.APIKey)
 
 	srv := &http.Server{

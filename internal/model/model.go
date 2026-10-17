@@ -5,7 +5,7 @@ import "time"
 // Document 表示一篇上传并解析后的文档。
 type Document struct {
 	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"` // 归属者；单用户模式固定为 "local"，将来多用户时由登录态赋值
+	UserID      string    `json:"user_id"` // 归属者；由 X-User-ID 头注入（admin 为全库超级用户）
 	Filename    string    `json:"filename"`
 	Title       string    `json:"title"`
 	PageCount   int       `json:"page_count"`
@@ -59,11 +59,12 @@ type Chunk struct {
 }
 
 // Question 是用户提问请求。
+// 注意：user_id 不再从请求体获取（防伪造），由 X-User-ID 头经中间件注入，
+// 由 handler 显式传给 service。
 type Question struct {
 	Query       string   `json:"query" binding:"required"`
 	TopK        int      `json:"top_k"`                  // 可选，覆盖默认 top_k
 	DocumentIDs []string `json:"document_ids,omitempty"` // 可选，限定检索范围；为空则全库检索
-	UserID      string   `json:"user_id,omitempty"`      // 归属者；为空时服务层默认 "local"
 	// Rerank 可选，请求级精排开关（三态）：
 	//   nil   = 跟随 ai.rerank.enabled 配置（默认行为，老调用方不传即此）
 	//   true  = 强制开启（要求 ai.rerank.model 已配置，否则无从调用、回退关闭）

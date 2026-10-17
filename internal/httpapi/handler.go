@@ -21,14 +21,15 @@ import (
 
 // documentService 是 Handler 对文档服务的依赖抽象，由 main 注入 *service.IngestService。
 // 抽象成接口便于对 HTTP 层做单测（用假实现替换真实服务）。
+// userID 由 UserContext 中间件注入（admin 为超级用户，作用域传空串 = 全库）。
 // Accept 是摄入的同步段（校验/落盘/去重/建 pending 记录，秒回）；
 // 慢活（解析/OCR/向量化）由 worker 异步执行，前端轮询 GET /documents/:id 看 status。
 type documentService interface {
-	Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, opts *model.IngestOptions) (*model.Document, error)
-	Rechunk(ctx context.Context, id string, opts *model.IngestOptions) (*model.Document, error)
-	Get(ctx context.Context, id string) (*model.Document, error)
-	List(ctx context.Context) ([]model.Document, error)
-	Delete(ctx context.Context, id string) error
+	Accept(ctx context.Context, file io.ReaderAt, size int64, filename string, userID string, opts *model.IngestOptions) (*model.Document, error)
+	Rechunk(ctx context.Context, id string, userID string, opts *model.IngestOptions) (*model.Document, error)
+	Get(ctx context.Context, id string, userID string) (*model.Document, error)
+	List(ctx context.Context, userID string) ([]model.Document, error)
+	Delete(ctx context.Context, id string, userID string) error
 }
 
 // connectionTester 是 LLM 连接测试的依赖抽象（由 *ai.Client 实现）。
@@ -46,10 +47,16 @@ type Handler struct {
 	// notifyIngest 摄入门铃：Accept 成功入队后唤醒 worker 立刻抢单（worker.Pool.Kick）。
 	// 可为 nil（本地无 worker 场景/单测），nil 时不按铃，靠 worker 兜底轮询。
 	notifyIngest func()
+	// adminUsers 超级用户集合（Agent 的 user_id）：全库检索/管理，ask 仅限其调用。
+	adminUsers map[string]struct{}
 }
 
 // NewHandler 创建处理器。
-func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64, notifyIngest func()) *Handler {
+func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64, notifyIngest func(), adminUsers []string) *Handler {
+	admins := make(map[string]struct{}, len(adminUsers))
+	for _, u := range adminUsers {
+		admins[u] = struct{}{}
+	}
 	return &Handler{
 		ingest:         ingest,
 		ask:            ask,
@@ -57,13 +64,30 @@ func NewHandler(ingest documentService, ask *service.AskService, search *service
 		tester:         tester,
 		maxUploadBytes: maxUploadMB * 1024 * 1024,
 		notifyIngest:   notifyIngest,
+		adminUsers:     admins,
 	}
+}
+
+// isAdmin 判断 userID 是否为配置的超级用户（config.yaml server.admin_users）。
+func (h *Handler) isAdmin(userID string) bool {
+	_, ok := h.adminUsers[userID]
+	return ok
+}
+
+// scopeUserID 把身份转为"数据作用域"：超级用户 → 空串 = 不过滤（全库）。
+func (h *Handler) scopeUserID(userID string) string {
+	if h.isAdmin(userID) {
+		return ""
+	}
+	return userID
 }
 
 // Health 健康检查。
 func (h *Handler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 }
+
+// scopeUserID 方法已上移；此处为调用方：handler 内统一用 h.scopeUserID / h.isAdmin。
 
 // UploadDocument 上传一个或多个 PDF 文档（**异步摄入语义**，2026-10 起）：
 // 只做接收段（校验/落盘/去重/建 pending 记录）秒回，慢活（解析/OCR/向量化）由后台 worker
@@ -75,6 +99,7 @@ func (h *Handler) Health(c *gin.Context) {
 //	chunk_size:    覆盖默认分块大小（config.yaml rag.chunk_size）
 //	chunk_overlap: 覆盖默认重叠字符数（config.yaml rag.chunk_overlap）
 func (h *Handler) UploadDocument(c *gin.Context) {
+	userID := c.GetString("user_id")
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "解析上传表单失败: " + err.Error()})
@@ -114,7 +139,7 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 			continue
 		}
 		logger.Debug("upload.file_start", "file", fh.Filename, "size_bytes", fh.Size)
-		doc, perr := h.ingest.Accept(c.Request.Context(), f, fh.Size, fh.Filename, opts)
+		doc, perr := h.ingest.Accept(c.Request.Context(), f, fh.Size, fh.Filename, userID, opts)
 		_ = f.Close()
 		r.DurationMS = time.Since(start).Milliseconds()
 
@@ -153,9 +178,10 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 	})
 }
 
-// ListDocuments 列出所有文档。
+// ListDocuments 列出文档（普通用户只看自己的；admin 看全部）。
 func (h *Handler) ListDocuments(c *gin.Context) {
-	docs, err := h.ingest.List(c.Request.Context())
+	userID := h.scopeUserID(c.GetString("user_id"))
+	docs, err := h.ingest.List(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -191,12 +217,13 @@ func parseIngestOptions(form *multipart.Form) (*model.IngestOptions, error) {
 // RechunkDocument 删除文档的全部 chunk 后，用新的分块参数重新分块入库。
 // 请求体为可选的 JSON：{"chunk_size": 400, "chunk_overlap": 50}；空 body 用文档当前参数。
 func (h *Handler) RechunkDocument(c *gin.Context) {
+	userID := h.scopeUserID(c.GetString("user_id"))
 	opts, err := bindOptionalIngestOptions(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	doc, err := h.ingest.Rechunk(c.Request.Context(), c.Param("id"), opts)
+	doc, err := h.ingest.Rechunk(c.Request.Context(), c.Param("id"), userID, opts)
 	if err != nil {
 		if errors.Is(err, service.ErrDocumentNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -238,11 +265,10 @@ func (h *Handler) TestConnection(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// GetDocument 查询单个文档详情。
-
-// GetDocument 查询单个文档详情。
+// GetDocument 查询单个文档详情（校验归属；admin 可看任何文档）。
 func (h *Handler) GetDocument(c *gin.Context) {
-	doc, err := h.ingest.Get(c.Request.Context(), c.Param("id"))
+	userID := h.scopeUserID(c.GetString("user_id"))
+	doc, err := h.ingest.Get(c.Request.Context(), c.Param("id"), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -254,9 +280,14 @@ func (h *Handler) GetDocument(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"document": doc})
 }
 
-// DeleteDocument 删除文档。
+// DeleteDocument 删除文档（校验归属；admin 可删任何文档）。
 func (h *Handler) DeleteDocument(c *gin.Context) {
-	if err := h.ingest.Delete(c.Request.Context(), c.Param("id")); err != nil {
+	userID := h.scopeUserID(c.GetString("user_id"))
+	if err := h.ingest.Delete(c.Request.Context(), c.Param("id"), userID); err != nil {
+		if errors.Is(err, service.ErrDocumentNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -264,7 +295,13 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 }
 
 // Ask 基于已入库文档回答用户问题（RAG）。
+// 安全：ask 是**全局检索**（不按用户过滤），仅管理员可调——它是内部测试接口，
+// 不对用户暴露（Agent 侧不提供 ask_rag 工具）。
 func (h *Handler) Ask(c *gin.Context) {
+	if !h.isAdmin(c.GetString("user_id")) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "ask 仅管理员可用"})
+		return
+	}
 	var q model.Question
 	if err := c.ShouldBindJSON(&q); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
@@ -282,14 +319,15 @@ func (h *Handler) Ask(c *gin.Context) {
 
 // Search 暴露检索接口（POST /api/v1/search）。
 // 不调 LLM，返回纯结构化命中片段（content = 完整 chunk），供 Agent 自拼上下文回答
-// （双接口演进 ADR-001）。
+// （双接口演进 ADR-001）。按用户隔离：普通用户只搜自己的，admin 搜全库。
 func (h *Handler) Search(c *gin.Context) {
+	userID := h.scopeUserID(c.GetString("user_id"))
 	var q model.Question
 	if err := c.ShouldBindJSON(&q); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
 		return
 	}
-	resp, err := h.search.Search(c.Request.Context(), q)
+	resp, err := h.search.Search(c.Request.Context(), q, userID)
 	if err != nil {
 		logger.Error("search.request_failed", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

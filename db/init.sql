@@ -6,11 +6,11 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 2. 文档表：每篇论文一行
--- user_id: 文档归属者。当前单用户模式固定为 'local'，为将来多用户隔离铺路；
---          接入鉴权后应由登录态动态赋值。
+-- user_id: 文档归属者，由 X-User-ID 头注入（admin 为全库超级用户）。
+--         多用户后所有文档必须有归属，不存在 "local" 无主数据。
 CREATE TABLE IF NOT EXISTS documents (
     id           VARCHAR(32) PRIMARY KEY,
-    user_id      VARCHAR(64) NOT NULL DEFAULT 'local',
+    user_id      VARCHAR(64) NOT NULL DEFAULT 'admin',
     filename     VARCHAR(255) NOT NULL,
     title        VARCHAR(255),
     page_count   INTEGER NOT NULL DEFAULT 0,
@@ -32,9 +32,15 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_size   INTEGER NOT NULL DEF
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_overlap INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ;
 
--- 2.1 内容哈希去重：同一文件 SHA-256 唯一（failed 文档除外，允许重传重试）
-CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash
-    ON documents(content_hash) WHERE status <> 'failed';
+-- 2.3 多用户数据迁移：旧单用户模式的 "local" 归属统一归为 admin（幂等）。
+--     先合并归属，再建新索引，避免旧全局索引与新 (user_id, content_hash) 冲突。
+UPDATE documents SET user_id = 'admin' WHERE user_id = 'local';
+
+-- 2.1 内容哈希去重：同一用户下文件 SHA-256 唯一（failed 文档除外，允许重传重试）。
+--     多用户后去重限定在用户名下——用户 B 可上传用户 A 已有的相同文件（各自归属）。
+DROP INDEX IF EXISTS idx_documents_content_hash;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_user_hash
+    ON documents(user_id, content_hash) WHERE status <> 'failed';
 
 -- 3. 分块向量表：每个文本片段一行，含向量
 --    注意: embedding 维度必须与 config.yaml 中 ai.embedding.dimension 一致

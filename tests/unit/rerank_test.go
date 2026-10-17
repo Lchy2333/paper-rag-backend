@@ -155,12 +155,14 @@ type rerankMockStore struct {
 }
 
 func (m *rerankMockStore) SaveDocument(ctx context.Context, doc *model.Document) error { return nil }
-func (m *rerankMockStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
+func (m *rerankMockStore) GetDocument(ctx context.Context, id string, userID string) (*model.Document, error) {
 	return nil, nil
 }
-func (m *rerankMockStore) ListDocuments(ctx context.Context) ([]model.Document, error) { return nil, nil }
-func (m *rerankMockStore) DeleteDocument(ctx context.Context, id string) error         { return nil }
-func (m *rerankMockStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
+func (m *rerankMockStore) ListDocuments(ctx context.Context, userID string) ([]model.Document, error) {
+	return nil, nil
+}
+func (m *rerankMockStore) DeleteDocument(ctx context.Context, id string, userID string) error { return nil }
+func (m *rerankMockStore) FindByContentHash(ctx context.Context, hash string, userID string) (*model.Document, error) {
 	return nil, nil
 }
 func (m *rerankMockStore) AddChunks(ctx context.Context, chunks []model.Chunk) error { return nil }
@@ -233,7 +235,7 @@ func TestSearchService_RerankEnabled(t *testing.T) {
 		config.RAGConfig{TopK: 5, SimilarityThreshold: 0},
 	)
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -273,7 +275,7 @@ func TestSearchService_RerankPoolExpanded(t *testing.T) {
 		ms,
 		config.RAGConfig{TopK: 5, SimilarityThreshold: 0},
 	)
-	if _, err := svc.Search(context.Background(), model.Question{Query: "q"}); err != nil {
+	if _, err := svc.Search(context.Background(), model.Question{Query: "q"}, ""); err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
 	ms.mu.Lock()
@@ -298,7 +300,7 @@ func TestSearchService_RerankDegradesOnError(t *testing.T) {
 		config.RAGConfig{TopK: 5, SimilarityThreshold: 0},
 	)
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"}, "")
 	if err != nil {
 		t.Fatalf("rerank 失败应降级而非报错: %v", err)
 	}
@@ -342,7 +344,7 @@ func TestSearchService_RerankDisabledZeroRegression(t *testing.T) {
 	ms := &rerankMockStore{results: rerankTestResults(30)}
 	svc := service.NewSearchService(client, ms, config.RAGConfig{TopK: 5, SimilarityThreshold: 0})
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -388,7 +390,7 @@ func TestSearchService_RerankTopNCap(t *testing.T) {
 		config.RAGConfig{TopK: 5, SimilarityThreshold: 0},
 	)
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题"}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -478,7 +480,7 @@ func TestSearchService_RerankRequestForceOn(t *testing.T) {
 	ms := &rerankMockStore{results: rerankTestResults(30)}
 	svc := service.NewSearchService(client, ms, config.RAGConfig{TopK: 5, SimilarityThreshold: 0})
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(true)})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(true)}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -521,7 +523,7 @@ func TestSearchService_RerankRequestForceOff(t *testing.T) {
 	ms := &rerankMockStore{results: rerankTestResults(30)}
 	svc := service.NewSearchService(client, ms, config.RAGConfig{TopK: 5, SimilarityThreshold: 0})
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(false)})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(false)}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -565,7 +567,7 @@ func TestSearchService_RerankRequestForceOnWithoutModel(t *testing.T) {
 	ms := &rerankMockStore{results: rerankTestResults(30)}
 	svc := service.NewSearchService(client, ms, config.RAGConfig{TopK: 5, SimilarityThreshold: 0})
 
-	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(true)})
+	resp, err := svc.Search(context.Background(), model.Question{Query: "测试问题", Rerank: boolPtr(true)}, "")
 	if err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
@@ -600,7 +602,7 @@ func TestSearchService_RerankRequestNilFollowsConfig(t *testing.T) {
 	svc := service.NewSearchService(client,
 		&rerankMockStore{results: rerankTestResults(30)},
 		config.RAGConfig{TopK: 5, SimilarityThreshold: 0})
-	if _, err := svc.Search(context.Background(), model.Question{Query: "q"}); err != nil {
+	if _, err := svc.Search(context.Background(), model.Question{Query: "q"}, ""); err != nil {
 		t.Fatalf("Search 失败: %v", err)
 	}
 	if got := atomic.LoadInt32(&rerankCalls); got != 1 {

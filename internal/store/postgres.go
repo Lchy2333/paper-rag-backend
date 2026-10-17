@@ -85,11 +85,11 @@ func (s *PostgresStore) SaveDocument(ctx context.Context, doc *model.Document) e
 // docColumns 是文档表的查询列（含分块参数），各查询复用。
 const docColumns = `id, user_id, filename, COALESCE(title, ''), page_count, size_bytes, chunk_count, status, COALESCE(error, ''), COALESCE(content_hash, ''), chunk_size, chunk_overlap, created_at`
 
-func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Document, error) {
+func (s *PostgresStore) GetDocument(ctx context.Context, id string, userID string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
 		SELECT `+docColumns+`
-		FROM documents WHERE id = $1`, id,
+		FROM documents WHERE id = $1 AND ($2 = '' OR user_id = $2)`, id, userID,
 	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
 		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.ChunkSize, &d.ChunkOverlap, &d.CreatedAt)
 	if err != nil {
@@ -101,10 +101,10 @@ func (s *PostgresStore) GetDocument(ctx context.Context, id string) (*model.Docu
 	return &d, nil
 }
 
-func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, error) {
+func (s *PostgresStore) ListDocuments(ctx context.Context, userID string) ([]model.Document, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT `+docColumns+`
-		FROM documents ORDER BY created_at DESC`)
+		FROM documents WHERE ($1 = '' OR user_id = $1) ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("查询文档列表失败: %w", err)
 	}
@@ -122,12 +122,12 @@ func (s *PostgresStore) ListDocuments(ctx context.Context) ([]model.Document, er
 	return docs, rows.Err()
 }
 
-// FindByContentHash 按内容哈希查找文档（上传去重用），找不到返回 nil。
-func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string) (*model.Document, error) {
+// FindByContentHash 按内容哈希查找文档（上传去重用，限定归属用户），找不到返回 nil。
+func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string, userID string) (*model.Document, error) {
 	var d model.Document
 	err := s.pool.QueryRow(ctx, `
 		SELECT `+docColumns+`
-		FROM documents WHERE content_hash = $1`, hash,
+		FROM documents WHERE content_hash = $1 AND user_id = $2`, hash, userID,
 	).Scan(&d.ID, &d.UserID, &d.Filename, &d.Title, &d.PageCount, &d.SizeBytes,
 		&d.ChunkCount, &d.Status, &d.Error, &d.ContentHash, &d.ChunkSize, &d.ChunkOverlap, &d.CreatedAt)
 	if err != nil {
@@ -139,10 +139,16 @@ func (s *PostgresStore) FindByContentHash(ctx context.Context, hash string) (*mo
 	return &d, nil
 }
 
-// DeleteDocument 删除文档，其 chunks 由外键 ON DELETE CASCADE 自动级联删除。
-func (s *PostgresStore) DeleteDocument(ctx context.Context, id string) error {
-	if _, err := s.pool.Exec(ctx, `DELETE FROM documents WHERE id = $1`, id); err != nil {
+// DeleteDocument 删除文档（校验归属），其 chunks 由外键 ON DELETE CASCADE 自动级联删除。
+// userID 为空 = admin 超级用户（可删任何文档）。
+func (s *PostgresStore) DeleteDocument(ctx context.Context, id string, userID string) error {
+	tag, err := s.pool.Exec(ctx, `
+		DELETE FROM documents WHERE id = $1 AND ($2 = '' OR user_id = $2)`, id, userID)
+	if err != nil {
 		return fmt.Errorf("删除文档失败: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
@@ -184,7 +190,8 @@ func (s *PostgresStore) ClaimPendingTask(ctx context.Context) (*model.Document, 
 		return nil, fmt.Errorf("领取任务失败: %w", err)
 	}
 	// 抢单成功后取回完整文档（分块参数等）。status 已是 processing，无人会再动它。
-	doc, err := s.GetDocument(ctx, id)
+	// 内部操作（worker 领任务），不受用户归属过滤——传空串 = 全库。
+	doc, err := s.GetDocument(ctx, id, "")
 	if err != nil {
 		return nil, err
 	}

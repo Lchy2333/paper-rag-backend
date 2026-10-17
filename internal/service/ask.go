@@ -44,7 +44,7 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 	}
 	logger.Debug("ask.embed_done", "duration_ms", time.Since(embStart).Milliseconds())
 
-	// 2. 向量检索（限定归属用户；未指定文档则全库检索）
+	// 2. 向量检索（ask 是全局检索——仅 admin 可调，鉴权在 handler 层）
 	topK := s.cfg.TopK
 	if q.TopK > 0 {
 		topK = q.TopK
@@ -58,14 +58,9 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 			pool = p
 		}
 	}
-	userID := q.UserID
-	if userID == "" {
-		userID = defaultOwnerUserID
-	}
 	searchStart := time.Now()
 	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{
 		DocIDs:    q.DocumentIDs,
-		UserID:    userID,
 		UseHybrid: true,
 		QueryText: q.Query,
 	})
