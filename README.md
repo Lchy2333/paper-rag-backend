@@ -6,8 +6,8 @@
 
 - **Go** 1.21+（开发环境为 1.26）
 - **Gin** Web 框架
-- **Ollama 本地模型**（默认）：Embedding 用 `bge-m3`，Chat 用 `qwen3:8b`，公式 OCR 用 `qwen2.5vl:7b`（视觉模型），全部本地运行、无需联网与 API Key
-- **OpenAI 兼容接口**：`base_url` 可切换任意 OpenAI 兼容服务（DeepSeek / Qwen / Ollama / OpenAI）
+- **SiliconFlow 云 API**（默认）：Embedding 用 `BAAI/bge-m3`（1024 维），Chat 用 `deepseek-ai/DeepSeek-V3`，公式 OCR 用 `deepseek-ai/DeepSeek-OCR`（视觉模型），全部走 OpenAI 兼容 API
+- **OpenAI 兼容接口**：`base_url` 可切换任意 OpenAI 兼容服务（SiliconFlow / DeepSeek / 火山方舟 / OpenAI / Ollama 本地）
 - **PostgreSQL 18 + pgvector**（默认存储），也可切回内存实现便于开发
 - **ledongthuc/pdf** 纯 Go PDF 文本提取（含**框线表格识别 → Markdown**、**公式区域检测**）
 
@@ -38,14 +38,16 @@ temp.py                # 黄金语料生成器：生成 PDF 与 facts.json
 ### 1. 准备依赖
 
 - **PostgreSQL 18+**，并安装 **pgvector** 扩展（Windows 需用 nmake 编译，见 pgvector 官方文档）
-- **Ollama**，并拉取模型：
+- **SiliconFlow API Key**（embedding / chat / OCR / rerank 全走硅基流动）：
 
 ```bash
-ollama pull bge-m3        # embedding（多语言，1024 维）
-ollama pull qwen3:8b      # chat（中文对话）
-ollama pull qwen2.5vl:7b  # 公式 OCR（多模态视觉，还原 LaTeX，可选）
+# 注册 SiliconFlow 拿 API Key：https://siliconflow.cn/
+# 配置环境变量：SILICONFLOW_API_KEY=<你的 key>（也可用 ${ENV} 注入 config.yaml）
 pip install pymupdf       # 公式截图渲染（MuPDF 内核，可选，需配置 render.python_cmd）
 ```
+
+> 💡 2026-10 起已从本地 Ollama 全面迁移到 SiliconFlow 云 API（embedding `BAAI/bge-m3` 维度 1024 与
+> `VECTOR(1024)` 一致，无需改库）。若想自托管，可把 `base_url` 指回 `http://localhost:11434/v1`。
 
 ### 2. 准备配置
 
@@ -57,21 +59,21 @@ cp config/config.example.yaml config/config.yaml
 
 ```yaml
 ai:
-  base_url: "http://localhost:11434/v1"   # 默认 Ollama；embedding/chat 可各自覆盖
-  api_key: "ollama"                       # Ollama 不需要 key，填任意值
+  base_url: "https://api.siliconflow.cn/v1"   # 默认 SiliconFlow；embedding/chat 可各自覆盖
+  api_key: "${SILICONFLOW_API_KEY}"           # 硅基流动 API Key（环境变量注入）
   embedding:
-    base_url: ""                          # 可选：embedding 单独用别的地址，留空则用 ai.base_url
-    api_key: ""                           # 可选：留空则用 ai.api_key
-    model: "bge-m3"
-    dimension: 1024                       # ⚠️ 必须与数据库 VECTOR(n) 一致
+    base_url: ""                              # 可选：embedding 单独用别的地址，留空则用 ai.base_url
+    api_key: ""                               # 可选：留空则用 ai.api_key
+    model: "BAAI/bge-m3"
+    dimension: 1024                           # ⚠️ 必须与数据库 VECTOR(n) 一致
   chat:
-    base_url: ""                          # 可选：chat 单独用别的地址（如 OpenAI），留空则用 ai.base_url
-    api_key: ""                           # 可选：chat 单独用别的 key（如 ${OPENAI_API_KEY}），留空则用 ai.api_key
-    model: "qwen3:8b"
-  formula:                                # 可选：公式 OCR（公式区域截图 → LaTeX）
-    base_url: "http://localhost:11434/v1" # 可选：留空则用 ai.base_url
-    api_key: "ollama"
-    model: "qwen2.5vl:7b"                 # 多模态视觉模型；不配/拉不到则公式保持扁平文本入库
+    base_url: ""                              # 可选：chat 单独用别的地址（如火山方舟），留空则用 ai.base_url
+    api_key: ""                               # 可选：chat 单独用别的 key，留空则用 ai.api_key
+    model: "deepseek-ai/DeepSeek-V3"
+  formula:                                    # 可选：公式 OCR（公式区域截图 → LaTeX）
+    base_url: "https://api.siliconflow.cn/v1" # 可选：留空则用 ai.base_url
+    api_key: "${SILICONFLOW_API_KEY}"
+    model: "deepseek-ai/DeepSeek-OCR"         # 视觉模型；识别失败则公式保持扁平文本入库
 
 render:                                   # 可选：PDF 渲染（公式截图），需先 pip install pymupdf
   python_cmd: "python"                    # Python 可执行文件；留空则公式退回扁平文本
@@ -284,7 +286,7 @@ curl -X POST http://localhost:8080/api/v1/documents/<doc-id>/rechunk \
 ```bash
 curl -X POST http://localhost:8080/api/v1/connections/test \
   -H "Content-Type: application/json" \
-  -d '{"kind": "chat", "base_url": "http://localhost:11434/v1", "api_key": "ollama", "model": "qwen3:8b"}'
+  -d '{"kind": "chat", "base_url": "https://api.siliconflow.cn/v1", "api_key": "sk-xxx", "model": "deepseek-ai/DeepSeek-V3"}'
 ```
 
 `/ask` / `/search` 请求体（**`user_id` 已从 body 移除**，改由 `X-User-ID` 头提供）：

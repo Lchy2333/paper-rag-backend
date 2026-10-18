@@ -26,44 +26,42 @@ ai:
   #   DeepSeek:    https://api.deepseek.com/v1
   #   火山方舟标准: https://ark.cn-beijing.volces.com/api/v3
   #   火山方舟Plan: https://ark.cn-beijing.volces.com/api/plan/v3/
+  #   SiliconFlow: https://api.siliconflow.cn/v1
   #   Ollama 本地: http://localhost:11434/v1
   # 注意：embedding 和 chat 可分别在各自节里覆盖 base_url（见下）
-  base_url: "http://localhost:11434/v1"
-  # 支持 ${ENV_VAR} 语法引用环境变量，例如 ${OPENAI_API_KEY}。
-  # Ollama 本地不需要 key，填任意值即可。
-  api_key: "ollama"
+  base_url: "https://api.siliconflow.cn/v1"
+  # 支持 ${ENV_VAR} 语法引用环境变量，例如 ${SILICONFLOW_API_KEY}。
+  api_key: "${SILICONFLOW_API_KEY}"
   timeout_sec: 300
 
   embedding:
     # 可选：单独指定向量化服务的 base_url / api_key，为空则回退到 ai.base_url / ai.api_key。
-    # 例如 embedding 发到另一个本地服务：
-    #   base_url: "http://192.168.1.10:11434/v1"
-    base_url: "http://localhost:11434/v1"
-    api_key: "ollama"
-    # 使用 Ollama 本地多语言向量模型 bge-m3，中文/英文混合语义强，维度 1024
-    # （必须与数据库 VECTOR(n) 一致）
-    model: "bge-m3"
+    # SiliconFlow BAAI/bge-m3：多语言向量模型，维度 1024（必须与数据库 VECTOR(n) 一致）。
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    model: "BAAI/bge-m3"
     dimension: 1024
     batch_size: 16
 
   chat:
     # 可选：单独指定对话服务的 base_url / api_key，为空则回退到 ai.base_url / ai.api_key。
+    # 说明：/search-only 架构下 RAG 不调 chat 生成回答（由 Agent 负责），此处为兜底配置。
     # 例：走火山方舟（Agent Plan 套餐时用 /api/plan/v3/，标准 API 用 /api/v3）：
     #   base_url: "https://ark.cn-beijing.volces.com/api/plan/v3/"
     #   api_key: "${ARK_API_KEY}"
-    base_url: "https://ark.cn-beijing.volces.com/api/plan/v3/"
-    api_key: "${ARK_API_KEY}"
-    model: "deepseek-v4-flash"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    model: "deepseek-ai/DeepSeek-V3"
     temperature: 0.2
     max_tokens: 2048
 
   formula:
     # 公式 OCR：把公式裁剪图识别成 LaTeX，用多模态视觉模型。
     # base_url / api_key 为空则回退到 ai.base_url / ai.api_key。
-    # 例：Ollama 本地视觉模型（需 ollama pull qwen2.5vl:7b）：
-    base_url: "http://localhost:11434/v1"
-    api_key: "ollama"
-    model: "qwen2.5vl:7b"
+    # SiliconFlow DeepSeek-OCR：视觉模型，公式/文字识别。
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${SILICONFLOW_API_KEY}"
+    model: "deepseek-ai/DeepSeek-OCR"
     temperature: 0.1
     max_tokens: 1024
 
