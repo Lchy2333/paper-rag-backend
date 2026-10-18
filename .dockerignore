@@ -1,0 +1,16 @@
+# 排除：构建产物 / 测试 / 数据 / 本地配置
+bin/
+*.exe
+*.test
+uploads/
+goldentest/reports/
+__pycache__/
+*.pyc
+.git/
+.idea/
+.vscode/
+config/config.yaml
+.env
+config.test.yaml
+AGENTS.md
+architecture.md
