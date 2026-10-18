@@ -94,7 +94,8 @@ rag:
 database:
   # 存储实现：仅支持 postgres（本地数据库，pgvector 向量检索）
   type: "postgres"
-  host: "localhost"
+  # host 支持环境变量覆盖：本地默认 localhost；容器/生产注入 POSTGRES_HOST=postgres（compose 服务名）
+  host: "${POSTGRES_HOST:-localhost}"
   port: 5432
   user: "postgres"
   password: "${POSTGRES_PASSWORD}"
