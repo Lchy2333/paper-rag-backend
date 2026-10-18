@@ -236,6 +236,26 @@ curl -X POST http://localhost:8080/api/v1/ask \
 }
 ```
 
+## Docker 部署
+
+本项目已容器化（`Dockerfile`：Go 多阶段构建 + PyMuPDF 公式截图）。**完整编排（postgres + rag + agent + fronted）在 [paper-rag-deploy](https://github.com/Lchy2333/paper-rag-deploy) 仓**，用 docker-compose 一键拉起：
+
+```bash
+# 1. clone 四个仓（保持并列目录）
+git clone .../paper-rag-agent.git
+git clone .../paper-rag-backend.git
+git clone .../paper-rag-fronted.git
+git clone .../paper-rag-deploy.git
+# 2. 配密钥 env 文件（见 deploy 仓 README）
+# 3. 拉起
+cd paper-rag-deploy && docker compose up -d --build
+```
+
+> Dockerfile 关键点：构建依赖全走国内源（GOPROXY / pip / npm / apt）；
+> `third_party/`（go.mod replace 本地 fork）须在 go mod download 前 COPY；
+> gojieba 需 cgo（去 CGO_ENABLED=0 + 运行时装 libstdc++6）且运行时复制词典到编译路径。
+> 踩坑详见 [deploy 仓《部署避坑指南》](https://github.com/Lchy2333/paper-rag-deploy/blob/main/避坑指南.md)。
+
 ## API 一览
 
 > **鉴权**（除 `/health` 外全部接口）：

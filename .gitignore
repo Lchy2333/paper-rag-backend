@@ -1,5 +1,4 @@
 # 依赖
-go.sum
 vendor/
 
 # 构建产物
