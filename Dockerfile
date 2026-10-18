@@ -6,7 +6,9 @@ FROM golang:1.26 AS builder
 WORKDIR /app
 # 国内 Go 依赖代理（proxy.golang.org 在国内被墙/超时）
 ENV GOPROXY=https://goproxy.cn,direct
+# go.mod 里 replace 了本地 fork（third_party/pdf），go mod download 前必须 COPY
 COPY go.mod go.sum ./
+COPY third_party/ ./third_party/
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /server ./cmd/server
