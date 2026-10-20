@@ -320,6 +320,10 @@ func (h *Handler) Ask(c *gin.Context) {
 // Search 暴露检索接口（POST /api/v1/search）。
 // 不调 LLM，返回纯结构化命中片段（content = 完整 chunk），供 Agent 自拼上下文回答
 // （双接口演进 ADR-001）。按用户隔离：普通用户只搜自己的，admin 搜全库。
+//
+// 改造成 SSE 流式：检索过程各阶段（embed / retrieve / rerank）实时推 progress 事件，
+// 全部完成后推 result（完整 SearchResponse）；中途失败推 error。
+// 客户端（Agent 的 HttpTool）逐行解析 SSE：progress 转发进度、result 收最终结果。
 func (h *Handler) Search(c *gin.Context) {
 	userID := h.scopeUserID(c.GetString("user_id"))
 	var q model.Question
@@ -327,15 +331,35 @@ func (h *Handler) Search(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
 		return
 	}
-	resp, err := h.search.Search(c.Request.Context(), q, userID)
+
+	w := c.Writer
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // 防 nginx 缓冲：进度实时穿透
+	w.WriteHeader(http.StatusOK)
+	w.Flush()
+
+	// 写一条 SSE 并立即 flush（flush 是 SSE 的灵魂，不 flush 进度会憋在缓冲区）
+	writeSSE := func(event string, payload any) {
+		b, _ := json.Marshal(payload)
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
+		w.Flush()
+	}
+
+	onProgress := func(ev service.ProgressEvent) {
+		writeSSE("progress", ev)
+	}
+
+	resp, err := h.search.Search(c.Request.Context(), q, userID, onProgress)
 	if err != nil {
 		logger.Error("search.request_failed", "err", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeSSE("error", gin.H{"error": err.Error()})
 		return
 	}
 	logger.Debug("search.request_done", "query", truncate(q.Query, 120),
 		"hits", resp.TotalChunks, "latency_ms", resp.LatencyMS)
-	c.JSON(http.StatusOK, resp)
+	writeSSE("result", resp)
 }
 
 func truncate(s string, n int) string {

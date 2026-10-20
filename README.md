@@ -275,7 +275,7 @@ cd paper-rag-deploy && docker compose up -d --build
 | POST | `/api/v1/documents/:id/rechunk` | 删除该文档全部 chunk 后用新分块参数重新分块入库 |
 | DELETE | `/api/v1/documents/:id` | 删除文档及向量（越权/不存在 404） |
 | POST | `/api/v1/ask` | 提问，返回基于检索片段的回答与引用（**仅管理员**，全局检索） |
-| POST | `/api/v1/search` | 纯检索（不调 LLM），按归属过滤，Agent 默认入口 |
+| POST | `/api/v1/search` | 纯检索（不调 LLM），按归属过滤，Agent 默认入口。**SSE 流式**（2026-10 起）：检索过程逐阶段推 `progress` 事件，完成后推 `result`（见下节「`/search` SSE 协议」） |
 
 **上传时的可选分块参数**（作用于本次上传的全部文件，缺省用配置 `rag.chunk_size` / `rag.chunk_overlap`）：
 
@@ -332,6 +332,26 @@ curl -X POST http://localhost:8080/api/v1/ask \
   -H "Content-Type: application/json" \
   -d '{"query": "对比这两篇论文的核心观点", "document_ids": ["<doc-a-id>", "<doc-b-id>"]}'
 ```
+
+### `/search` SSE 协议（2026-10 起）
+
+`/search` 改造成 **SSE 流式**（供 Agent 转发进度到前端，让用户看到"正在检索"的实时状态）。
+响应 `Content-Type: text/event-stream`，事件格式 `event: <name>` + `data: <JSON>`：
+
+```
+event: progress   data: {"stage":"embed","status":"start"}
+event: progress   data: {"stage":"embed","status":"done","ms":273}
+event: progress   data: {"stage":"retrieve","status":"start"}
+event: progress   data: {"stage":"retrieve","status":"done","ms":411,"hits":12}
+event: progress   data: {"stage":"rerank","status":"start"}        # 仅 rerank 开启且候选超池
+event: progress   data: {"stage":"rerank","status":"done","ms":432}
+event: result     data: {"results":[...],"total_chunks":5,"latency_ms":...}   # 完整 SearchResponse
+event: error      data: {"error":"..."}                            # 检索中途失败
+```
+
+- **阶段**：`embed`（问题向量化）/ `retrieve`（三路混合粗排，`hits`=候选数）/ `rerank`（精排，仅开启时出现）。
+- **行为不变**：请求体 / 归属过滤（`X-User-ID`）/ rerank 三态开关 / fail-open 全部与之前一致，只是"一次返回 JSON"变为"流式逐步返回"。
+- **客户端注意**：`text/event-stream` 无 charset，SSE 里含中文（chunk 内容），读取时必须按 **UTF-8** 解码（Agent 侧已处理）。
 
 ## 黄金测试集（goldentest/）
 
@@ -476,7 +496,7 @@ go test ./tests/integration -run TestPostgresStore -v
 |---|---|---|
 | 异步摄入队列 | RAG | 大 PDF 摄入不再阻塞请求，工具调用先返回 job id |
 | ~~混合检索（BM25 + 向量）~~ | RAG | ✅ 已实现（2026-09）：向量 + tsvector 全文（gojieba 分词）+ pg_trgm 字面，三路 RRF 融合 |
-| **`/search` 纯检索接口（ADR-001 双接口演进）** | RAG | 把 `/ask` 的检索阶段独立暴露（返回 chunks + 引用，**不调 LLM**），供 Agent 自拼上下文回答；`/ask` 保留。契约见 Agent 仓库 `architecture.md` |
+| **`/search` 纯检索接口（ADR-001 双接口演进）✅ 已实现（2026-10，且已改 SSE 流式）** | RAG | 把 `/ask` 的检索阶段独立暴露（返回 chunks + 引用，**不调 LLM**），供 Agent 自拼上下文回答；`/ask` 保留。契约见 Agent 仓库 `architecture.md` |
 | ~~服务级鉴权（API Key）~~ | RAG | ✅ 已实现（2026-10）：`server.api_key` + `X-API-Key` 中间件（常量时间比较，`/health` 豁免，空值=开发模式不启用）；Agent 侧 `RAG_API_KEY` 经 session 默认头携带。用户登录在 Agent/前端 |
 | Docker 化部署 | RAG + Agent | RAG 作为独立服务部署 |
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
