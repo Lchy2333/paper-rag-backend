@@ -48,21 +48,41 @@ type SearchResponse struct {
 	LatencyMS   int64        `json:"latency_ms"`
 }
 
+// ProgressEvent 是检索过程的阶段性进度事件（SSE 逐条下发，供 Agent 转发给前端）。
+// Stage: embed（向量化）/ retrieve（混合检索）/ rerank（精排重排）
+// Status: start / done；done 时带 Ms（耗时），retrieve done 额外带 Hits（候选数）。
+type ProgressEvent struct {
+	Stage  string `json:"stage"`
+	Status string `json:"status"`
+	Ms     int64  `json:"ms,omitempty"`
+	Hits   int    `json:"hits,omitempty"`
+}
+
 // Search 对问题做向量检索（强制混合），返回结构化命中片段。
 // 与 AskService.Ask 共享 store.Search + 归属过滤，
 // **唯一区别是不调 ai.Chat**——把 LLM 生成上浮到 Agent。
 // userID 由 handler 从 X-User-ID 注入；"" 表示 admin（全库检索）。
-func (s *SearchService) Search(ctx context.Context, q model.Question, userID string) (*SearchResponse, error) {
+// onProgress 为可选回调（variadic，旧调用方/测试不传也不受影响）：
+// 传了则检索过程各阶段（embed/retrieve/rerank）逐条回调，供 SSE 实时下发。
+func (s *SearchService) Search(ctx context.Context, q model.Question, userID string,
+	onProgress ...func(ProgressEvent)) (*SearchResponse, error) {
 	start := time.Now()
+	emit := func(ev ProgressEvent) {
+		if len(onProgress) > 0 && onProgress[0] != nil {
+			onProgress[0](ev)
+		}
+	}
 	logger.Debug("search.start", "query", truncate(q.Query, 120))
 
 	// 1. 问题向量化（与 AskService.Ask 一致）
+	emit(ProgressEvent{Stage: "embed", Status: "start"})
 	embStart := time.Now()
 	vectors, err := s.ai.Embed(ctx, []string{q.Query})
 	if err != nil {
 		logger.Error("search.embed_failed", "err", err)
 		return nil, err
 	}
+	emit(ProgressEvent{Stage: "embed", Status: "done", Ms: time.Since(embStart).Milliseconds()})
 	logger.Debug("search.embed_done", "duration_ms", time.Since(embStart).Milliseconds())
 
 	// 2. 检索参数（与 AskService.Ask 一致：限 user_id / doc_ids，强制混合）
@@ -80,6 +100,7 @@ func (s *SearchService) Search(ctx context.Context, q model.Question, userID str
 		}
 	}
 	searchStart := time.Now()
+	emit(ProgressEvent{Stage: "retrieve", Status: "start"})
 	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{
 		DocIDs:    q.DocumentIDs,
 		UserID:    userID,
@@ -90,12 +111,16 @@ func (s *SearchService) Search(ctx context.Context, q model.Question, userID str
 		logger.Error("search.search_failed", "err", err)
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}
+	emit(ProgressEvent{Stage: "retrieve", Status: "done", Ms: time.Since(searchStart).Milliseconds(), Hits: len(results)})
 	logger.Debug("search.search_done", "hits", len(results), "top_k", pool,
 		"duration_ms", time.Since(searchStart).Milliseconds())
 
 	// 2.5 精排：候选超过 topK 时 cross-encoder 重打分排序；失败自动降级原顺序（fail-open）
 	if useRerank && len(results) > topK {
+		emit(ProgressEvent{Stage: "rerank", Status: "start"})
+		rerankStart := time.Now()
 		results = rerankResults(ctx, s.ai, "search", q.Query, results, topK)
+		emit(ProgressEvent{Stage: "rerank", Status: "done", Ms: time.Since(rerankStart).Milliseconds()})
 	}
 
 	// 3. 拼成结构化响应（content = 完整 chunk，不截断——Agent 自拼上下文用）
