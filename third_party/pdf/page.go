@@ -148,7 +148,7 @@ func (p Page) Fonts() []string {
 
 // Font returns the font with the given name associated with the page.
 func (p Page) Font(name string) Font {
-	return Font{p.Resources().Key("Font").Key(name), nil}
+	return newFont(p.Resources().Key("Font").Key(name))
 }
 
 // A Font represent a font in a PDF file.
@@ -156,6 +156,14 @@ func (p Page) Font(name string) Font {
 type Font struct {
 	V   Value
 	enc TextEncoding
+
+	// cid 缓存复合字体（Type0）的 CID 宽度表。指针字段让 Font 值拷贝
+	// （如 gstate.Tf）共享同一份缓存，避免逐字重复解析 /W 数组。
+	cid *cidWidths
+}
+
+func newFont(v Value) Font {
+	return Font{V: v, cid: &cidWidths{font: v, composite: v.Key("Subtype").Name() == "Type0"}}
 }
 
 // BaseFont returns the font's name (BaseFont property).
@@ -184,14 +192,128 @@ func (f Font) Widths() []float64 {
 	return out
 }
 
-// Width returns the width of the given code point.
+// Width returns the width of the given code point, in 1/1000 em.
+//
+// 简单字体（单字节编码）的宽度在字体字典顶层的 /Widths 里，按 code-FirstChar
+// 索引；复合字体（Type0，多字节编码）顶层 /Widths 为 null，宽度在
+// DescendantFonts[0] 的 /W（逐字或区间）+ /DW（缺省宽度）里。以前只查顶层
+// /Widths，导致所有 CJK 复合字体宽度恒为 0，字形推进被压成兜底值。
 func (f Font) Width(code int) float64 {
-	first := f.FirstChar()
-	last := f.LastChar()
-	if code < first || last < code {
-		return 0
+	if w := f.V.Key("Widths"); w.Kind() == Array {
+		if first := f.FirstChar(); code >= first {
+			if v := w.Index(code - first); v.Kind() == Integer || v.Kind() == Real {
+				return v.Float64()
+			}
+		}
 	}
-	return f.V.Key("Widths").Index(code - first).Float64()
+	if f.cid != nil && f.cid.composite {
+		return f.cid.width(code)
+	}
+	return 0
+}
+
+// cidWidths 是复合字体（Type0）的 CID 宽度表，首次使用时从
+// DescendantFonts[0] 的 /DW 与 /W 懒加载。
+type cidWidths struct {
+	font      Value
+	composite bool
+	loaded    bool
+	dw        float64
+	ranges    []cidRange
+}
+
+type cidRange struct {
+	lo, hi int
+	width  float64
+}
+
+func (cw *cidWidths) width(code int) float64 {
+	if !cw.loaded {
+		cw.load()
+	}
+	i := sort.Search(len(cw.ranges), func(i int) bool { return cw.ranges[i].hi >= code })
+	if i < len(cw.ranges) && cw.ranges[i].lo <= code {
+		return cw.ranges[i].width
+	}
+	return cw.dw
+}
+
+func (cw *cidWidths) load() {
+	cw.loaded = true
+	cw.dw = 1000 // PDF 规范缺省值
+
+	desc := cw.font.Key("DescendantFonts").Index(0)
+	if desc.IsNull() {
+		return
+	}
+	if x := desc.Key("DW"); x.Kind() == Integer || x.Kind() == Real {
+		cw.dw = x.Float64()
+	}
+
+	add := func(lo, hi int, width float64) {
+		if hi < lo {
+			return
+		}
+		cw.ranges = append(cw.ranges, cidRange{lo, hi, width})
+	}
+	// /W 有两种格式，可混用：
+	//   c [w1 w2 ...]      → 从 c 起逐个 CID 的宽度
+	//   cFirst cLast w     → [cFirst, cLast] 区间统一为 w
+	w := desc.Key("W")
+	for i := 0; i < w.Len(); {
+		first := w.Index(i)
+		if first.Kind() != Integer {
+			i++
+			continue
+		}
+		c0 := int(first.Int64())
+		next := w.Index(i + 1)
+		if next.Kind() == Array {
+			// 把连续等宽的 CID 压缩成区间，避免为每个 CID 存一条记录。
+			runLo, runHi, runW := -1, -1, 0.0
+			for j := 0; j < next.Len(); j++ {
+				code := c0 + j
+				width := next.Index(j).Float64()
+				if runLo < 0 {
+					runLo, runHi, runW = code, code, width
+					continue
+				}
+				if width == runW && code == runHi+1 {
+					runHi = code
+					continue
+				}
+				add(runLo, runHi, runW)
+				runLo, runHi, runW = code, code, width
+			}
+			add(runLo, runHi, runW)
+			i += 2
+			continue
+		}
+		if next.Kind() == Integer {
+			add(c0, int(next.Int64()), w.Index(i+2).Float64())
+			i += 3
+			continue
+		}
+		i++
+	}
+	sort.Slice(cw.ranges, func(i, j int) bool { return cw.ranges[i].lo < cw.ranges[j].lo })
+}
+
+// glyphCodeLen 返回 s 中首字节开启的字形码占几个字节。
+// 简单字体是单字节；Type0 复合字体是多字节（GBK 系首字节 0x81-0xFE 为双字节，
+// Identity-H/V 固定双字节，其余未知 CMap 按双字节处理）。
+func (f Font) glyphCodeLen(b byte) int {
+	if f.cid == nil || !f.cid.composite {
+		return 1
+	}
+	switch f.V.Key("Encoding").Name() {
+	case "Identity-H", "Identity-V":
+		return 2
+	}
+	if b >= 0x81 {
+		return 2
+	}
+	return 1
 }
 
 // Encoder returns the encoding between font code point sequences and UTF-8.
@@ -858,40 +980,47 @@ func (p Page) Content() Content {
 
 	var text []Text
 	showText := func(s string) {
-		n := 0
-		decoded := enc.Decode(s)
-		for _, ch := range decoded {
-			var w0 float64
-			if n < len(s) {
-				w0 = g.Tf.Width(int(s[n]))
-			}
-			n++
+		f := g.Tf.BaseFont()
+		if i := strings.Index(f, "+"); i >= 0 {
+			f = f[i+1:]
+		}
 
-			// Width() returns 0 for many CID / simple fonts that have no
-			// /Widths array on the font dictionary (base-14 Times-Roman,
-			// subset CJK fonts, etc.). A zero advance makes every glyph of a
-			// run share the same X, so the caller's (Y, X) sort scrambles the
-			// reading order. Fall back to a font-size based advance so X
-			// stays monotonic in reading order.
-			if w0 == 0 {
-				if ch < 0x1100 {
-					w0 = g.Tfs * 0.5 // half-width (ASCII, Latin, digits, space)
-				} else {
-					w0 = g.Tfs // full-width (CJK)
+		// 按字体的编码单元（简单字体 1 字节 / Type0 多字节）切分字形码。
+		// 以前按 UTF-8 rune 计数、却用 s[n] 按字节取宽度，对 GBK 双字节字符
+		// 会错位（第二个字节被当成下一个字形的码），宽度和推进都不对。
+		for i := 0; i < len(s); {
+			n := g.Tf.glyphCodeLen(s[i])
+			if i+n > len(s) {
+				n = len(s) - i
+			}
+			code := 0
+			for k := 0; k < n; k++ {
+				code = code<<8 | int(s[i+k])
+			}
+			raw := s[i : i+n]
+			i += n
+
+			w0 := g.Tf.Width(code)
+
+			for _, ch := range enc.Decode(raw) {
+				// Width() 仍可能返回 0（字体确实没有 /Widths、/W 也缺失）。
+				// 兜底值必须是千分制（1000 = 全角），否则推进会被缩小 1000 倍
+				// —— 这正是每字只进 0.29pt、整行字形挤在同一点的根因。
+				if w0 == 0 {
+					if ch < 0x1100 {
+						w0 = 500 // half-width (ASCII, Latin, digits, space)
+					} else {
+						w0 = 1000 // full-width (CJK)
+					}
 				}
+
+				Trm := matrix{{g.Tfs * g.Th, 0, 0}, {0, g.Tfs, 0}, {0, g.Trise, 1}}.mul(g.Tm).mul(g.CTM)
+				text = append(text, Text{f, Trm[0][0], Trm[2][0], Trm[2][1], w0 / 1000 * Trm[0][0], string(ch)})
+
+				tx := w0/1000*g.Tfs + g.Tc
+				tx *= g.Th
+				g.Tm = matrix{{1, 0, 0}, {0, 1, 0}, {tx, 0, 1}}.mul(g.Tm)
 			}
-
-			f := g.Tf.BaseFont()
-			if i := strings.Index(f, "+"); i >= 0 {
-				f = f[i+1:]
-			}
-
-			Trm := matrix{{g.Tfs * g.Th, 0, 0}, {0, g.Tfs, 0}, {0, g.Trise, 1}}.mul(g.Tm).mul(g.CTM)
-			text = append(text, Text{f, Trm[0][0], Trm[2][0], Trm[2][1], w0 / 1000 * Trm[0][0], string(ch)})
-
-			tx := w0/1000*g.Tfs + g.Tc
-			tx *= g.Th
-			g.Tm = matrix{{1, 0, 0}, {0, 1, 0}, {tx, 0, 1}}.mul(g.Tm)
 		}
 	}
 
@@ -1028,7 +1157,7 @@ func (p Page) Content() Content {
 					panic("bad TL")
 				}
 				f := args[0].Name()
-				g.Tf = Font{res.Key("Font").Key(f), nil}
+				g.Tf = newFont(res.Key("Font").Key(f))
 				enc = g.Tf.Encoder()
 				if enc == nil {
 					if DebugOn {
@@ -1071,7 +1200,6 @@ func (p Page) Content() Content {
 						g.Tm = matrix{{1, 0, 0}, {0, 1, 0}, {tx, 0, 1}}.mul(g.Tm)
 					}
 				}
-				showText("\n")
 
 			case "TL": // set text leading
 				if len(args) != 1 {

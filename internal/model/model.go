@@ -70,6 +70,11 @@ type Question struct {
 	//   true  = 强制开启（要求 ai.rerank.model 已配置，否则无从调用、回退关闭）
 	//   false = 强制关闭（临时关闭做对比/调试，不动配置）
 	Rerank *bool `json:"rerank,omitempty"`
+	// Hybrid 可选，请求级混合检索开关（三态）：
+	//   nil   = 默认混合（向量 + 字面 RRF，老调用方不传即此，零回归）
+	//   true  = 强制混合
+	//   false = 纯向量（消融对比用，字面通路不需要任何外部配置，无需回退）
+	Hybrid *bool `json:"hybrid,omitempty"`
 }
 
 // UploadResult 是多文件上传时单个文件的处理结果。

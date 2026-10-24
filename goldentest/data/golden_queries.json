@@ -1,0 +1,309 @@
+{
+  "schema_version": 2,
+  "updated_at": "2026-10-24",
+  "queries": [
+    {
+      "id": "Q-R1-A1-01",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "verbatim",
+      "status": "draft",
+      "question": "同样做轴压试验，短柱和梁柱节点各自的破坏形式是什么？",
+      "evidence": [
+        {
+          "fact_id": "F101",
+          "role": "essential",
+          "doc": "R12",
+          "page": 1,
+          "section": "摘要",
+          "quote": "试验结果表明，轴压短柱破坏形式为剪切破坏，节点\n的破坏形式为核心区混凝土压溃破坏；"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "短柱": "剪切破坏",
+          "节点": "核心区混凝土压溃破坏"
+        },
+        "keypoints": [
+          "短柱发生剪切破坏",
+          "节点发生核心区混凝土压溃破坏"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F101"
+      ],
+      "forbidden_claims": [
+        "短柱发生核心区混凝土压溃破坏",
+        "节点发生剪切破坏"
+      ],
+      "judge_rubric": [
+        "两种破坏形式都答对算 correct",
+        "只答对一种算 partial",
+        "两种都答错或把两者说反算 wrong"
+      ],
+      "notes": "问题保留原文术语（轴压、短柱、节点、破坏形式），词面重合高，定为 R1；答案可直接从摘要截取，定为 A1。"
+    },
+    {
+      "id": "Q-R2-A1-01",
+      "retrieval_level": "R2",
+      "answer_level": "A1",
+      "tags": [
+        "table",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "系列 I 的试验里，CFT1 这个试件开裂时和最终破坏时的荷载分别是多少？",
+      "evidence": [
+        {
+          "fact_id": "F96",
+          "role": "essential",
+          "doc": "R11",
+          "page": 4,
+          "section": "Tests of Connections with CFST Columns",
+          "quote": "Table 1. Specimen Parameters and the Experimental and Calculated Loads for Series I Tests\nSpecimen\nd × t\n(mm × mm)\nb × h\n(mm × mm)\nfcu (MPa)\nRing bars in\nring beam\nCracking\nload Ncr (kN)\nUltimate\nload Nu (kN)\nNcal (kN)\nNcal=Nu\nCFT1\n500 × 6\n350 × 600\n46.3/40.8/44.7\n3ϕ14@75\n7,000\n10,151\n14,670\n1.45"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "开裂荷载_kN": 7000,
+          "极限荷载_kN": 10151
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 1
+        },
+        "keypoints": [
+          "开裂荷载 7,000 kN",
+          "极限荷载 10,151 kN"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": true
+      },
+      "must_cite": [
+        "F96"
+      ],
+      "forbidden_claims": [
+        "开裂荷载为 10,151 kN",
+        "极限荷载为 7,000 kN"
+      ],
+      "judge_rubric": [
+        "两个数值与单位都正确算 correct",
+        "只答对一个数值算 partial",
+        "两个数值互换或量级错误算 wrong"
+      ],
+      "notes": "中文提问、英文表格，靠跨语言语义匹配而非词面命中，定为 R2；答案是表格单元格直接取数，定为 A1。数值带千分位，判分时需先归一化。"
+    },
+    {
+      "id": "Q-R3-A2-01",
+      "retrieval_level": "R3",
+      "answer_level": "A2",
+      "tags": [
+        "cross_section"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "混凝土结构设计规范里，一级和二级裂缝控制等级对受拉边缘应力的要求各是什么？",
+      "evidence": [
+        {
+          "fact_id": "F47",
+          "role": "essential",
+          "doc": "R05",
+          "page": 7,
+          "section": "3.3.3 裂缝控制等级",
+          "quote": "二级—\n一般要求不出现裂缝的构件，按荷载效\n应标准组合计算时，构件受拉边缘混凝土拉应力不应\n大于混凝土轴心抗拉强度标准值；"
+        },
+        {
+          "fact_id": "F50",
+          "role": "essential",
+          "doc": "R05",
+          "page": 38,
+          "section": "8.1.1 裂缝控制验算",
+          "quote": "一级—\n严格要求不出现裂缝的构件\n    \n在荷载效应的标准组合下应符合F列规定："
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "一级": "σck − σpc ≤ 0（荷载标准组合下受拉边缘不产生拉应力）",
+          "二级": "受拉边缘混凝土拉应力不大于混凝土抗拉强度标准值"
+        },
+        "keypoints": [
+          "一级：受拉边缘正截面应力满足 σck − σpc ≤ 0",
+          "二级：受拉边缘混凝土拉应力不超过混凝土轴心抗拉强度标准值",
+          "两者都针对荷载标准组合"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F47",
+        "F50"
+      ],
+      "forbidden_claims": [
+        "一级允许拉应力不超过抗拉强度标准值",
+        "二级要求不产生拉应力"
+      ],
+      "judge_rubric": [
+        "两个等级的要求都答对算 correct",
+        "只答对一个等级算 partial",
+        "把两个等级的要求互换算 wrong"
+      ],
+      "notes": "两条证据分别在第 26 页 3.4.4 与第 103 页 7.1.1，跨章节，定为 R3；答案需要压缩原文并列举两项对照，定为 A2。一级的判据以式(7.1.1-1)为准，quote 只锚定引导句，公式在 fact 的 latex 字段。"
+    },
+    {
+      "id": "Q-R4-A4-01",
+      "retrieval_level": "R4",
+      "answer_level": "A4",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "有文献批评临界剪切裂缝理论（CSCT）的尺寸效应预测不可靠，也有文献为它辩护。他们的核心分歧和依据分别是什么？",
+      "evidence": [
+        {
+          "fact_id": "F38",
+          "role": "essential",
+          "doc": "R04",
+          "page": 1,
+          "section": "Abstract",
+          "quote": "They make CSCT untrustworthy outside the testing range; ditto for beams with T,\nI and box cross section, or for continuous beams."
+        },
+        {
+          "fact_id": "F39",
+          "role": "essential",
+          "doc": "R04",
+          "page": 4,
+          "section": "3 Beam Shear Strength According to CSCT",
+          "quote": "Figure 1c further shows that if the curves are matched at\nd0 = d, then the difference, Δvu, between the two prediction\ncurves becomes 14.4% at both the small-size and large-size\nasymptotes."
+        },
+        {
+          "fact_id": "F44",
+          "role": "essential",
+          "doc": "R06",
+          "page": 4,
+          "section": "General considerations on the consistency of the CSCT",
+          "quote": "In agreement to fracture mechanics, the size effect \ncalculated by this approach yields to milder slopes of the size effect for \nasymptotically large sizes. Typical values are between ‐1/2.5 and ‐1/3 (punching, \ncontinuous beams [10])."
+        },
+        {
+          "fact_id": "F45",
+          "role": "supporting",
+          "doc": "R06",
+          "page": 4,
+          "section": "General considerations on the consistency of the CSCT",
+          "quote": "In fact, the slope ‐1/2 is generally valid \nwhen linear‐elastic behaviour is assumed as for uncracked responses, which is \nusually not relevant for practice."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "text",
+        "value": "两文立场对立。批评方（R04）认为 CSCT 依赖六个物理上不成立的隐含假设，其尺寸效应在试验范围之外对 T 形、I 形、箱形截面梁和连续梁不可信，并给出与 SEL 的强度差在小尺寸和大尺寸渐近段均为 14.4%；辩护方（R06）认为 CSCT 与断裂力学一致，对大尺寸给出的尺寸效应斜率更缓（冲切与连续梁典型值在 −1/2.5 至 −1/3 之间），因此可用于规范。",
+        "keypoints": [
+          "R04 认为 CSCT 的隐含假设不成立，尺寸效应在试验范围外不可信",
+          "R04 给出 CSCT 与 SEL 的强度差在小/大尺寸渐近段均为 14.4%",
+          "R06 认为 CSCT 与断裂力学一致，大尺寸斜率更缓（−1/2.5 至 −1/3）",
+          "结论是两文立场冲突，须并列呈现而不是只取一方"
+        ]
+      },
+      "output_format": {
+        "style": "paragraph",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F38",
+        "F39",
+        "F44"
+      ],
+      "forbidden_claims": [
+        "两文结论一致",
+        "CSCT 已被证明完全错误",
+        "R06 认为 CSCT 在试验范围外不可信"
+      ],
+      "judge_rubric": [
+        "同时给出两文立场与各自依据，并明确承认分歧算 correct",
+        "只采用一方立场下结论算 wrong",
+        "指出分歧但缺任一方依据算 partial"
+      ],
+      "notes": "证据跨 R04 与 R06 两篇文档，且结论对立，定为 R4/A4。判分看的是行为（是否归属冲突），不是看能否算出某个数。F45 只作 supporting，不计入 coverage 分母。"
+    },
+    {
+      "id": "Q-R2-A3-01",
+      "retrieval_level": "R2",
+      "answer_level": "A3",
+      "tags": [
+        "table",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "某承受吊车荷载但不需要做疲劳验算的受弯构件，按规范公式算出的最大裂缝宽度为 0.28 mm，验算时这个裂缝宽度应取多少毫米？",
+      "evidence": [
+        {
+          "fact_id": "F51",
+          "role": "essential",
+          "doc": "R05",
+          "page": 38,
+          "section": "8.1.2 最大裂缝宽度计算（注1）",
+          "quote": "注：1 对承受吊车荷载但不需作疲劳验算的受弯构\n          \n件，可将计算求得的最大裂缝宽度乘以系数\n            \n0.85;"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "numeric",
+        "value": 0.238,
+        "tolerance": {
+          "mode": "absolute",
+          "value": 0.002
+        },
+        "keypoints": [
+          "该类构件可将计算求得的最大裂缝宽度乘以系数 0.85",
+          "0.28 × 0.85 = 0.238 mm"
+        ],
+        "unit": "mm"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": true
+      },
+      "must_cite": [
+        "F51"
+      ],
+      "forbidden_claims": [
+        "直接取 0.28 mm 而不乘折减系数",
+        "把系数误用为 0.8 或其他值"
+      ],
+      "judge_rubric": [
+        "两个限值都算出且单位换算正确算 correct",
+        "只算对一个算 partial",
+        "未代入跨度或用反分母算 wrong"
+      ],
+      "notes": "问题用“行车”“下垂量”替代原文“吊车”“挠度”，且原文没有 9 m 这个数，定为 R2；答案必须把表 3.4.3 的 l0/500、l0/600 代入 9000 mm 再换算，定为 A3。表格文本层存在 OCR 错字（莹弯、!0、lo），但 G0 页级已通过。"
+    }
+  ]
+}

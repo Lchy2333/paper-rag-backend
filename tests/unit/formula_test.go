@@ -118,3 +118,58 @@ func TestDetectFormulas_NoMathFont(t *testing.T) {
 		t.Fatalf("无数学字体不应检测到公式, got %+v", got)
 	}
 }
+
+// TestDetectFormulas_TimesEnglishRejected 汉斯出版社式误报：整行 Times 英文
+// （摘要/正文英文词）虽然命中宽松字体指纹，但不含数学特征，不应判成公式。
+func TestDetectFormulas_TimesEnglishRejected(t *testing.T) {
+	s := "This paper investigates the bearing capacity of columns"
+	var texts []pdf.Text
+	for i, r := range s {
+		texts = append(texts, mfont("TimesNewRomanPSMT", string(r), float64(100+i*5), 100))
+	}
+	if got := parser.DetectFormulas(pdf.Content{Text: texts}); got != nil {
+		t.Fatalf("全 Times 英文行不应判成公式, got %+v", got)
+	}
+}
+
+// TestDetectFormulas_TimesNumbersRejected 表格数字行（全 Times）不是公式。
+func TestDetectFormulas_TimesNumbersRejected(t *testing.T) {
+	content := pdf.Content{Text: []pdf.Text{
+		mfont("TimesNewRomanPSMT", "5", 100, 100),
+		mfont("TimesNewRomanPSMT", "90", 115, 100),
+		mfont("TimesNewRomanPSMT", "20", 135, 100),
+		mfont("TimesNewRomanPSMT", "27", 155, 100),
+	}}
+	if got := parser.DetectFormulas(content); got != nil {
+		t.Fatalf("表格数字行不应判成公式, got %+v", got)
+	}
+}
+
+// TestDetectFormulas_TimesRealFormulaKept 2026-09-12 放宽指纹的目标场景：
+// Times 正体公式 a=b+c 含数学特征，仍应检出（不能因收紧门槛而回归）。
+func TestDetectFormulas_TimesRealFormulaKept(t *testing.T) {
+	content := pdf.Content{Text: []pdf.Text{
+		mfont("TimesNewRomanPSMT", "a", 100, 100),
+		mfont("TimesNewRomanPSMT", "=", 110, 100),
+		mfont("TimesNewRomanPSMT", "b", 120, 100),
+		mfont("TimesNewRomanPSMT", "+", 130, 100),
+		mfont("TimesNewRomanPSMT", "c", 140, 100),
+	}}
+	formulas := parser.DetectFormulas(content)
+	if len(formulas) != 1 {
+		t.Fatalf("Times 正体公式 a=b+c 应检出, got %d", len(formulas))
+	}
+}
+
+// TestDetectFormulas_StrongFontSuperscriptKept 强指纹字体（CambriaMath）区域
+// 不受数学特征门槛约束——保护 x² 这类无运算符的真实公式场景。
+func TestDetectFormulas_StrongFontSuperscriptKept(t *testing.T) {
+	content := pdf.Content{Text: []pdf.Text{
+		mfont("CambriaMath", "x", 100, 300),
+		mfont("CambriaMath", "2", 110, 303),
+	}}
+	formulas := parser.DetectFormulas(content)
+	if len(formulas) != 1 {
+		t.Fatalf("强指纹字体的 x² 应检出, got %d", len(formulas))
+	}
+}

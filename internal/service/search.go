@@ -58,7 +58,18 @@ type ProgressEvent struct {
 	Hits   int    `json:"hits,omitempty"`
 }
 
-// Search 对问题做向量检索（强制混合），返回结构化命中片段。
+// resolveHybrid 解析请求级混合检索开关（/ask、/search 共用）：
+//   - override == nil   ：默认混合（老调用方不传字段，零回归）
+//   - override == true  ：强制混合
+//   - override == false ：纯向量（消融对比用；字面通路无外部依赖，不存在"未配置回退"问题）
+func resolveHybrid(override *bool) bool {
+	if override == nil {
+		return true
+	}
+	return *override
+}
+
+// Search 对问题做向量检索（默认混合，可用 q.Hybrid 请求级切纯向量），返回结构化命中片段。
 // 与 AskService.Ask 共享 store.Search + 归属过滤，
 // **唯一区别是不调 ai.Chat**——把 LLM 生成上浮到 Agent。
 // userID 由 handler 从 X-User-ID 注入；"" 表示 admin（全库检索）。
@@ -104,7 +115,7 @@ func (s *SearchService) Search(ctx context.Context, q model.Question, userID str
 	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{
 		DocIDs:    q.DocumentIDs,
 		UserID:    userID,
-		UseHybrid: true,
+		UseHybrid: resolveHybrid(q.Hybrid),
 		QueryText: q.Query,
 	})
 	if err != nil {

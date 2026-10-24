@@ -1,0 +1,834 @@
+{
+  "schema_version": 2,
+  "updated_at": "2026-10-24",
+  "facts": {
+    "F01": {
+      "type": "verbatim",
+      "claim": "由于主导破坏模式是粘结面下方混凝土被剪切破坏，极限粘结强度与混凝土抗压强度成正比",
+      "doc": "R01",
+      "page": 3,
+      "section": "2 Previous Research on the Interface Bond",
+      "quote": "Since the dominant failure mode is shearing of the concrete beneath the bond, the ultimate strength is proportional to concrete compressive strength (f 0 c)."
+    },
+    "F02": {
+      "type": "verbatim",
+      "claim": "存在一个粘结发展长度，超过该长度后失效荷载不再增加",
+      "doc": "R01",
+      "page": 3,
+      "section": "2 Previous Research on the Interface Bond",
+      "quote": "There is a bond development length beyond which the load at failure cannot be increased."
+    },
+    "F03": {
+      "type": "verbatim",
+      "claim": "建议实际设计中尽量延长 FRP 粘结长度，并使用高极限延伸率的胶粘剂，以激活混凝土压碎或 FRP 断裂等其他破坏机制",
+      "doc": "R01",
+      "page": 10,
+      "section": "4 Conclusions",
+      "quote": "it is recommended that the bonded length of the FRP be as long as possible, along with the use of adhesives with high ultimate elongation, to promote the use of FRP strength and activate other failure mechanisms such as crushing or rupture."
+    },
+    "F04": {
+      "type": "verbatim",
+      "claim": "较薄胶层降低混凝土-胶粘剂界面发生破坏的概率",
+      "doc": "R01",
+      "page": 4,
+      "section": "2 Previous Research on the Interface Bond",
+      "quote": "thinner adhesive layers lower the chances of a concrete-adhesive interface failure."
+    },
+    "F05": {
+      "type": "verbatim",
+      "claim": "较薄胶层更有利，刚性粘结层并不理想",
+      "doc": "R01",
+      "page": 10,
+      "section": "4 Conclusions",
+      "quote": "The thinner adhesive layers lower the chances of a concrete-adhesive interface failure; thus, stiff bond layers are not ideal."
+    },
+    "F06": {
+      "type": "verbatim",
+      "claim": "使用延性更高的胶粘剂会得到较弱的粘结但更大的失效应变",
+      "doc": "R01",
+      "page": 3,
+      "section": "2 Previous Research on the Interface Bond",
+      "quote": "The use of more ductile adhesives leads to weaker bonds but larger failure strains."
+    },
+    "F07": {
+      "type": "verbatim",
+      "claim": "现行规范给出的有效粘结长度公式彼此很不一致",
+      "doc": "R01",
+      "page": 8,
+      "section": "3 Bond-Related Analytical Models",
+      "quote": "However, the effective bond length equations adopted in current codes are very inconsistent."
+    },
+    "F08": {
+      "type": "verbatim",
+      "claim": "目前没有被普遍接受的有效粘结长度解析模型",
+      "doc": "R01",
+      "page": 8,
+      "section": "3 Bond-Related Analytical Models",
+      "quote": "There remain no accepted analytical models to predict the effective bond length."
+    },
+    "F09": {
+      "type": "verbatim",
+      "claim": "机械打磨或喷砂处理混凝土表面后再涂合适底涂，可获得最佳粘结",
+      "doc": "R01",
+      "page": 3,
+      "section": "2 Previous Research on the Interface Bond",
+      "quote": "The best bond is achieved by mechanically abrading or sandblasting the concrete surface and then applying an appropriate primer."
+    },
+    "F10": {
+      "type": "verbatim",
+      "claim": "极限有效 FRP 应变按式(9)计算：0.083×sqrt(f'c/(n·Ef·tf))，且不超过 0.9 倍极限断裂应变",
+      "doc": "R01",
+      "page": 10,
+      "section": "4 Conclusions",
+      "quote": "The limiting effective FRP strain value is given by:",
+      "latex": "\\varepsilon_{fd} = 0.083 \\sqrt{\frac{f'_c}{n E_f t_f}} \\le 0.9 \\varepsilon_{fu}",
+      "ref": "(9)"
+    },
+    "F11": {
+      "type": "verbatim",
+      "claim": "式(8)~式(11)构成的挠曲线数学模型既适用于大变形弯曲情形，也适用于小变形弯曲情形。",
+      "doc": "R02",
+      "page": 4,
+      "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+      "quote": "这样式(8)~式(11)共同构成了等截面悬臂梁在轴向压力和横向力联合作用下的挠曲线数学模型,需要指出:该模型即适用于梁的大变形弯曲情形又适合于梁的小变形弯曲情形。"
+    },
+    "F12": {
+      "type": "verbatim",
+      "claim": "大变形情形下不能直接用方法1确定梁的挠度，应采用方法2，否则会得到错误结果。",
+      "doc": "R02",
+      "page": 5,
+      "section": "4. 算例",
+      "quote": "这说明：在梁的大变形情形下，不能直接应用方法1确定梁的挠度，而应该采用方法2确定梁的挠度，否则会得到错误的结果。"
+    },
+    "F13": {
+      "type": "verbatim",
+      "claim": "分析悬臂梁大变形弯曲问题时需同时考虑梁轴线上点的横向位移和轴向位移。",
+      "doc": "R02",
+      "page": 2,
+      "section": "1.引言",
+      "quote": "在大变形弯曲下，由于梁变形的几何非线因素不可忽略，因此，在分析悬臂梁的大变形弯曲问题时，不仅需要考虑梁轴线上点的横向位移（挠度），而且还需要考虑梁轴线上点的轴向位移"
+    },
+    "F14": {
+      "type": "verbatim",
+      "claim": "在材料线弹性范围内，式(7)对梁的小变形弯曲和大变形弯曲均适用。",
+      "doc": "R02",
+      "page": 4,
+      "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+      "quote": "这里需要指出：只要在梁的材料的线弹性范围内，式(7)对于梁的小变形弯曲和大变形弯曲都是适用的。"
+    },
+    "F15": {
+      "type": "verbatim",
+      "claim": "该非线性挠曲线模型一般很难求得精确解析解。",
+      "doc": "R02",
+      "page": 4,
+      "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+      "quote": "由于此模型为非线性模型，所以一般很难求得其精确的解析解。"
+    },
+    "F16": {
+      "type": "verbatim",
+      "claim": "采用Matlab bvp4c求方程(8)满足边界条件(9)的数值解。",
+      "doc": "R02",
+      "page": 4,
+      "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+      "quote": "首先应用Matlabbvp4c[8]（Matlab中求解非线性常微分方程两点边值问题的算法）求出方程(8)满足边界条件(9)的数值解"
+    },
+    "F17": {
+      "type": "verbatim",
+      "claim": "小变形情形下两种方法得到的挠曲线几乎重合。",
+      "doc": "R02",
+      "page": 5,
+      "section": "4. 算例",
+      "quote": "将图4中的实线和虚线相比较，可以看出：在梁的小变形情形下，应用上述两种方法所得到的挠曲线几乎重合。"
+    },
+    "F18": {
+      "type": "verbatim",
+      "claim": "等截面悬臂梁在自由端承受轴向压力和横向力联合作用时的挠曲线解析函数，仅适用于梁的小变形弯曲情形",
+      "doc": "R02",
+      "page": 3,
+      "section": "2. 悬臂梁在轴向压力和横向力联合作用下的小变形弯曲",
+      "quote": "这就是等截面悬臂梁在其自由端承受轴向压力和横向力联合作用时的挠曲线解析函数，需要说明的是该函数仅适用于梁的小变形弯曲情形。",
+      "latex": "v(x) = \\frac{F_2}{F_1} \\sqrt{\\frac{EI}{F_1}} \\left\\{ \\tan\\left(l \\sqrt{\\frac{F_1}{EI}}\\right) \\left[1 - \\cos\\left(x \\sqrt{\\frac{F_1}{EI}}\\right)\\right] + \\sin\\left(x \\sqrt{\\frac{F_1}{EI}}\\right) \\right\\} - \\frac{F_2}{F_1} x",
+      "ref": "(4)"
+    },
+    "F19": {
+      "type": "verbatim",
+      "claim": "小变形算例中，方法1 得到自由端挠度 0.0584 m，方法2 得到 0.0582 m，两者相对误差仅 0.3436%",
+      "doc": "R02",
+      "page": 5,
+      "section": "4. 算例",
+      "quote": "其中由方法1 所求得的梁的自由端的挠度是0.0584 m，由方法2 所求得的梁的自由端的挠度是0.0582 m，前者相对于后者的误差(相对误差)仅为0.3436%。"
+    },
+    "F20": {
+      "type": "verbatim",
+      "claim": "大变形算例中，方法1 相对方法2 计算自由端挠度的结果误差高达 40.72%",
+      "doc": "R02",
+      "page": 5,
+      "section": "4. 算例",
+      "quote": "在计算梁的自由端的挠度上,方法1 相对于方法2 的结果误差(相对误差)高达40.72%。"
+    },
+    "F21": {
+      "type": "verbatim",
+      "claim": "计算得到的约束压力范围为 5 至 19 MPa。",
+      "doc": "R03",
+      "page": 2,
+      "section": "Abstract",
+      "quote": "Confinements ranging from 5 to 19 MPa were calculated."
+    },
+    "F22": {
+      "type": "verbatim",
+      "claim": "该研究通过试验考察了钢套筒约束高强混凝土（HSC）的应力-应变特性。",
+      "doc": "R03",
+      "page": 2,
+      "section": "Abstract",
+      "quote": "An experimental investigation was conducted on the stress-strain\ncharacteristics of steel sleeve confined high-strength concrete\n(HSC)."
+    },
+    "F23": {
+      "type": "verbatim",
+      "claim": "Table 2 的每立方码 HSC 配合比中，波特兰水泥（Type I and II）用量为 801 lb。",
+      "doc": "R03",
+      "page": 4,
+      "section": "Material properties",
+      "quote": "Table 2—Mixture proportions for 1 yd3 of high-strength concrete (HSC)\nComponent\nWeight, lb\nCement Type I and II, portland\n801"
+    },
+    "F24": {
+      "type": "verbatim",
+      "claim": "研究发现 HSC 具有压力敏感性，内摩擦角为 49.5 度。",
+      "doc": "R03",
+      "page": 7,
+      "section": "SUMMARY AND CONCLUSIONS",
+      "quote": "It was found that HSC is pressure sensitive\nwith a friction angle of 49.5 degrees."
+    },
+    "F25": {
+      "type": "verbatim",
+      "claim": "作者结论认为，只要约束钢材足够多，HSC 就能表现出延性。",
+      "doc": "R03",
+      "page": 7,
+      "section": "SUMMARY AND CONCLUSIONS",
+      "quote": "It is concluded that HSC can become ductile if enough\nconfining steel is used."
+    },
+    "F26": {
+      "type": "verbatim",
+      "claim": "理论上，水泥完全水化所需的理想水灰比约为水泥质量的25%",
+      "doc": "R07",
+      "page": 1,
+      "section": "1. Introduction",
+      "quote": "Theoretically, the ideal water-to-cement ratio for full hydration is around 25% of the cement mass [1]."
+    },
+    "F27": {
+      "type": "verbatim",
+      "claim": "含GGBS-PFA的混凝土在50%和60%水泥用量水平下，7天与28天抗压强度较对照组提高9%~42%",
+      "doc": "R07",
+      "page": 4,
+      "section": "3.1. Compressive Strength",
+      "quote": "The compressive strength of concrete with 50% Ordinary Portland Cement (OPC) containing GGBS-PFA at 50% and 60% cement levels exhibited a significant increase ranging between 9% and 42% at both early (7 days) and late ages (28 days), surpassing the compressive strength of the control concrete."
+    },
+    "F28": {
+      "type": "verbatim",
+      "claim": "对照组混凝土在28天和90天的水渗透（吸水）值均为15 mm",
+      "doc": "R07",
+      "page": 8,
+      "section": "4.1. Sorptivity",
+      "quote": "The water penetration or sorptivity performance of the control concrete at 28 and 90 days was measured at 15 mm."
+    },
+    "F29": {
+      "type": "verbatim",
+      "claim": "Table 2显示，365天时FA混凝土的氯离子渗透电量（120库仑）低于NC（2730库仑）和SP（2180库仑）混凝土",
+      "doc": "R07",
+      "page": 10,
+      "section": "4.2. Rapid Chloride Permeability Test (RCPT)",
+      "quote": "Concrete type\nChloride permeability test (in Coulombs)\n90 days\n180 days\n365 days\nNC\n7302.6\n2261.5\n2730\nFA\n284.1\n526.5\n120\nSP\n3030\n2332.5\n2180"
+    },
+    "F30": {
+      "type": "verbatim",
+      "claim": "掺超塑化剂混凝土静弹性模量的提升归因于水泥与粗骨料界面过渡区粘结的改善",
+      "doc": "R07",
+      "page": 7,
+      "section": "3.3. Static Elastic and Dynamic Modulus of Concrete",
+      "quote": "The enhanced performance of the static elastic modulus in concrete containing superplasticizers is ascribed to the improved bonding observed at the interfacial transition zone between cement and coarse aggregates [18]."
+    },
+    "F31": {
+      "type": "verbatim",
+      "claim": "采用EN 1994-1-1和AISC 360-16计算长径比较小的构件时，会低估钢管对混凝土的强约束效应而使结果偏保守。",
+      "doc": "R08",
+      "page": 10,
+      "section": "5 结论",
+      "quote": "4) 采用欧洲规范EN 1994-1-1、美国规范AISC\n360-16 计算了钢管约束钢筋混凝土柱的轴压承载\n力，结果表明二者在构件长径比较小时较低估计了钢\n管对混凝土的强约束效应，导致计算结果较为保守。"
+    },
+    "F32": {
+      "type": "verbatim",
+      "claim": "试件钢管在距柱上下端100 mm处留有一道宽10 mm的缝，以保证其不直接承担竖向荷载。",
+      "doc": "R08",
+      "page": 2,
+      "section": "1.1 试件设计",
+      "quote": "钢管在距柱上下端100 mm 的位置留有\n一道宽10 mm 的缝，以保证其不直接承担竖向荷载。"
+    },
+    "F33": {
+      "type": "verbatim",
+      "claim": "文中拟合得到了不同长细比构件钢管平均环向应力的经验计算式。",
+      "doc": "R08",
+      "page": 6,
+      "section": "2.4 钢管的约束效应",
+      "quote": "在综合考虑图\n8 所示物理意义的基础上，对试验数据进行了拟合，\n得到了不同长细比构件钢管平均环向应力的经验\n计算式",
+      "latex": "\\sigma_{\\mathrm{h}}=\\frac{f_{\\mathrm{yt}}}{0.2\\left(L_{\\mathrm{t}}/D\\right)^{1.5}+1}",
+      "ref": "(2)"
+    },
+    "F34": {
+      "type": "verbatim",
+      "claim": "中长柱的外包钢管在加载至峰值荷载的82%～87%时发生屈曲。",
+      "doc": "R08",
+      "page": 3,
+      "section": "2.2 荷载-位移曲线",
+      "quote": "待荷载达到峰值荷载的82% ～87% ，外\n包钢管发生屈曲"
+    },
+    "F35": {
+      "type": "verbatim",
+      "claim": "有限元参数分析中钢管径厚比D/t的取值范围为80、100、120、150、200。",
+      "doc": "R08",
+      "page": 7,
+      "section": "3.4 参数分析",
+      "quote": "表2\n参数取值\nTable 2\nValues of studied parameters\n参数\n取值范围\nfc /MPa\n30，40，50，60，70\nfyt /MPa\n300，400，500\nfys /MPa\n300，400，500\nD/t\n80，100，120，150，200"
+    },
+    "F36": {
+      "type": "verbatim",
+      "claim": "该文作者指出，CSCT 的尺寸效应建立在假设2之上，即用式(1)中与裂缝宽度 w 成反比的线性分母来表达尺寸效应，并取 α1 = 1/3（MPa、mm）。",
+      "doc": "R04",
+      "page": 2,
+      "section": "2 Hypotheses Underlying the CSCT Theory",
+      "quote": "Hypothesis 2 To express the size effect, it is assumed that\n(Equation (1) in Ref.19):",
+      "latex": "\\frac{v_u}{\\sqrt{f_c}}=\\frac{\\alpha_1}{1+\\alpha_2 w/d_{dg}},\\quad \\alpha_1=1/3\\ (\\mathrm{MPa,mm})",
+      "ref": "(1)"
+    },
+    "F37": {
+      "type": "verbatim",
+      "claim": "该文作者认为，CSCT 所依赖的六个隐含假设在物理上均不成立。",
+      "doc": "R04",
+      "page": 9,
+      "section": "9 Conclusions",
+      "quote": "The CSCT is shown to rest on six implied hypotheses.\nThey are all physically unjustified."
+    },
+    "F38": {
+      "type": "verbatim",
+      "claim": "该文作者认为，这些假设使 CSCT 在试验范围之外不可信，对 T 形、I 形、箱形截面梁和连续梁同样不可信。",
+      "doc": "R04",
+      "page": 1,
+      "section": "Abstract",
+      "quote": "They make CSCT untrustworthy outside the testing range; ditto for beams with T,\nI and box cross section, or for continuous beams."
+    },
+    "F39": {
+      "type": "verbatim",
+      "claim": "该文给出，当 SEL 与 CSCT 的尺寸效应曲线在 d0 = d 处匹配时，两者的强度差在小尺寸和大尺寸渐近段均达到 14.4%。",
+      "doc": "R04",
+      "page": 4,
+      "section": "3 Beam Shear Strength According to CSCT",
+      "quote": "Figure 1c further shows that if the curves are matched at\nd0 = d, then the difference, Δvu, between the two prediction\ncurves becomes 14.4% at both the small-size and large-size\nasymptotes."
+    },
+    "F40": {
+      "type": "verbatim",
+      "claim": "该文指出，在 Walraven 试验的对比中，CSCT 相对 SEL 的极限强度差在小尺寸下达到 29%，并在 d→∞ 时翻倍。",
+      "doc": "R04",
+      "page": 12,
+      "section": "Appendix 2: Examples Verifying Realistic Performance of Microplane Model M7",
+      "quote": "For example, in Figure 4c, the difference reaches\nto 29% for small sizes and doubles for d ! ∞."
+    },
+    "F41": {
+      "type": "verbatim",
+      "claim": "该文主张CSCT已被证明足够通用、可靠且简单，可纳入实践规范。",
+      "doc": "R06",
+      "page": 1,
+      "section": "Introduction",
+      "quote": "The CSCT has shown to be general, reliable and simple enough to \nbe introduced in codes of practice."
+    },
+    "F42": {
+      "type": "verbatim",
+      "claim": "该文称CSCT的验证结果能合理再现破坏荷载及各剪力传递作用承担的剪力。",
+      "doc": "R06",
+      "page": 2,
+      "section": "The approach of the CSCT",
+      "quote": "The results show that not only the failure load is \nsuitably reproduced, but also the amount of shear carried by each shear‐transfer \naction (see Fig. 2,3)."
+    },
+    "F43": {
+      "type": "verbatim",
+      "claim": "该文称2015年对完整SEL的研究结果证明CSCT与Bažant方法一致，无需任何改动或补充考虑。",
+      "doc": "R06",
+      "page": 3,
+      "section": "General considerations on the consistency of the CSCT",
+      "quote": "The results proved the CSCT to be consistent to Bažant’s approach, without the need of any \nchange or additional consideration."
+    },
+    "F44": {
+      "type": "verbatim",
+      "claim": "该文称CSCT计算出的尺寸效应在渐近大尺寸下斜率更缓，冲切与连续梁的典型值介于-1/2.5和-1/3之间。",
+      "doc": "R06",
+      "page": 4,
+      "section": "General considerations on the consistency of the CSCT",
+      "quote": "In agreement to fracture mechanics, the size effect \ncalculated by this approach yields to milder slopes of the size effect for \nasymptotically large sizes. Typical values are between ‐1/2.5 and ‐1/3 (punching, \ncontinuous beams [10])."
+    },
+    "F45": {
+      "type": "verbatim",
+      "claim": "该文主张斜率-1/2仅在假定线弹性（如未开裂响应）时普遍成立，通常与实践不相关。",
+      "doc": "R06",
+      "page": 4,
+      "section": "General considerations on the consistency of the CSCT",
+      "quote": "In fact, the slope ‐1/2 is generally valid \nwhen linear‐elastic behaviour is assumed as for uncracked responses, which is \nusually not relevant for practice."
+    },
+    "F46": {
+      "type": "verbatim",
+      "claim": "受弯构件的最大挠度应按荷载效应的标准组合并考虑荷载长期作用影响计算，其计算值不应超过表3.3.2规定的挠度限值。",
+      "doc": "R05",
+      "page": 7,
+      "section": "3.3 正常使用极限状态验算规定",
+      "quote": "3.3.2 受弯构件的最大挠度应按荷载效应的标准组\n合并考虑荷载长期作用影响进行计算，其计算值不应\n超过表3.3.2规定的挠度限值。"
+    },
+    "F47": {
+      "type": "verbatim",
+      "claim": "二级裂缝控制等级适用于一般要求不出现裂缝的构件，按荷载效应标准组合计算时，构件受拉边缘混凝土拉应力不应大于混凝土轴心抗拉强度标准值。",
+      "doc": "R05",
+      "page": 7,
+      "section": "3.3.3 裂缝控制等级",
+      "quote": "二级—\n一般要求不出现裂缝的构件，按荷载效\n应标准组合计算时，构件受拉边缘混凝土拉应力不应\n大于混凝土轴心抗拉强度标准值；"
+    },
+    "F48": {
+      "type": "verbatim",
+      "claim": "采用HRB400和RRB400级钢筋以及承受重复荷载的构件，混凝土强度等级不得低于C20。",
+      "doc": "R05",
+      "page": 9,
+      "section": "4.1.2 混凝土强度等级",
+      "quote": "当采用HRB400和RRB400级钢筋以及承\n受重复荷载的构件，混凝土强度等级不得低于C20"
+    },
+    "F49": {
+      "type": "verbatim",
+      "claim": "矩形、T形和I形截面的一般受弯构件仅配置箍筋时，其斜截面受剪承载力应满足V≤Vcs+Vp，其中Vcs=0.7ft·b·h0+1.25fyv·(Asv/s)·h0。",
+      "doc": "R05",
+      "page": 27,
+      "section": "7.5.4 仅配置箍筋时的斜截面受剪承载力",
+      "quote": "7.5.4 矩形、T形和I形截面的一般受弯构件，当\n仅配置箍筋时，其斜截面的受剪承载力应符合下列规\n定：",
+      "latex": "V \\le V_{cs} + V_{p},\\quad V_{cs} = 0.7 f_{t} b h_{0} + 1.25 f_{yv} \\frac{A_{sv}}{s} h_{0}",
+      "ref": "式(7.5.4-1)、式(7.5.4-2)"
+    },
+    "F50": {
+      "type": "verbatim",
+      "claim": "一级裂缝控制等级的构件为严格要求不出现裂缝的构件，在荷载效应的标准组合下受拉边缘应力应满足σck−σpc≤0。",
+      "doc": "R05",
+      "page": 38,
+      "section": "8.1.1 裂缝控制验算",
+      "quote": "一级—\n严格要求不出现裂缝的构件\n    \n在荷载效应的标准组合下应符合F列规定：",
+      "latex": "\\sigma_{ck} - \\sigma_{pc} \\le 0",
+      "ref": "式(8.1.1-1)"
+    },
+    "F51": {
+      "type": "verbatim",
+      "claim": "对承受吊车荷载但不需作疲劳验算的受弯构件，可将计算求得的最大裂缝宽度乘以系数0.85。",
+      "doc": "R05",
+      "page": 38,
+      "section": "8.1.2 最大裂缝宽度计算（注1）",
+      "quote": "注：1 对承受吊车荷载但不需作疲劳验算的受弯构\n          \n件，可将计算求得的最大裂缝宽度乘以系数\n            \n0.85;"
+    },
+    "F52": {
+      "type": "verbatim",
+      "claim": "据表1的高频关键词统计，“人工智能”的频数为674，排在首位。",
+      "doc": "R09",
+      "page": 7,
+      "section": "Table 1. High-frequency keywords statistics",
+      "quote": "表1. 高频关键词统计 \n序号 \n关键词 \n频数 \n序号 \n关键词 \n频数 \n1 \n人工智能 \n674 \n16 \n信息技术 \n33 \n2 \n物联网 \n117 \n17 \n智慧建筑 \n32 \n3 \nBIM \n97 \n18 \n工程造价 \n30"
+    },
+    "F53": {
+      "type": "verbatim",
+      "claim": "Kim 等学者利用商用无人机搭载高分辨率视觉传感器并结合深度学习算法，实现了桥梁结构表面裂缝的自动检测与裂缝宽度、长度的精确计算。",
+      "doc": "R09",
+      "page": 4,
+      "section": "2.3.1 视觉驱动的智能养维护",
+      "quote": "Kim 等学者[14]则聚焦于混凝土桥梁的裂缝识别问题，他们利用商用无人机搭载高分辨率视觉传感器，\n结合深度学习算法，开展了一系列研究。该研究成功实现了对桥梁结构表面裂缝的自动检测、裂缝宽度\n与长度的精确计算。"
+    },
+    "F54": {
+      "type": "verbatim",
+      "claim": "Na 等学者基于遗传算法开展剪力结构损伤识别研究，在动态特性数据有限且结构刚度参数不确定的情况下利用结构柔性矩阵推导损伤程度和位置。",
+      "doc": "R09",
+      "page": 5,
+      "section": "2.3.2 数据驱动的智能养维护",
+      "quote": "Na 等学者[17]针对结构健康监测数据稀缺导致的损伤识别误差问题，开展了基于遗传算法的剪力结\n构损伤识别研究。该研究在动态特性数据有限且结构刚度参数存在不确定性的情况下，利用结构柔性矩\n阵推导损伤程度和位置，实现了高效的损伤评估。"
+    },
+    "F55": {
+      "type": "verbatim",
+      "claim": "该文指出，如果AI系统无法提供合理的解释或推算过程，其应用可能会受到限制且存在安全隐患。",
+      "doc": "R09",
+      "page": 3,
+      "section": "2.3 智能养维护",
+      "quote": "如果AI 系统无法提供合理的解释或推算过程，那么其应\n用可能会受到限制且存在安全隐患[10]。"
+    },
+    "F56": {
+      "type": "verbatim",
+      "claim": "该文认为，未来的研究应着眼于土木工程全生命周期的智能化发展，从设计、规划到养维护全方位提升各阶段智能化水平。",
+      "doc": "R09",
+      "page": 9,
+      "section": "5 结论",
+      "quote": "未来的研究应着眼于土木工程全生命周期的智能化发展，从设计、规划到养维护，全方位提升各阶段的\n智能化水平。"
+    },
+    "F57": {
+      "type": "verbatim",
+      "claim": "试验和大量震害表明，未经横向加劲处理的钢筋混凝土矮墩呈明显脆性破坏。",
+      "doc": "R10",
+      "page": 17,
+      "section": "1.1.1 研究背景",
+      "quote": "试验和大量震害表明，未经横向加劲处理的钢筋混凝土矮墩破坏呈明显脆\n性"
+    },
+    "F58": {
+      "type": "verbatim",
+      "claim": "该文提出的双柱钢管约束钢筋混凝土排架桥墩由连接钢板将两侧的钢管约束钢筋混凝土柱连接成整体，连接钢板在地震中兼起整体连接与耗能作用。",
+      "doc": "R10",
+      "page": 21,
+      "section": "1.1.2 研究意义",
+      "quote": "双柱钢管约束钢筋混凝土排架桥墩（图1.6）\n由连接钢板将两侧的钢管约束钢筋混凝土柱连接从而形成整体，此双柱排架桥墩\n在地震中，连接钢板既将两柱形成整体又耗散能量"
+    },
+    "F59": {
+      "type": "verbatim",
+      "claim": "表5.1中STCRC1与STCRC2的几何参数相同，轴压比分别为0.12和0.24，对应轴压力分别为282 kN和565 kN。",
+      "doc": "R10",
+      "page": 114,
+      "section": "5.2.2 试件设计制作",
+      "quote": "试件 \nL \n(mm)\nh \n(mm) \nh1 \n(mm) \nD \n(mm)\ntc  \n(mm) \nls \n(mm)\nhs \n(mm) \nts \n(mm) \nhj \n(mm) \ntj \n(mm) \nLRC \nTR \nDisconnection \nmode \nn \nN \n(kN)\nSTCRC1 1800 800 600 200 \n2 \n400 150 \n4 \n200 \n4 4C10 Φ8@100\nMode A \n0.12 282 \nSTCRC2 1800 800 600 200 \n2 \n400 150 \n4 \n200 \n4 4C10 Φ8@100\nMode A \n0.24 565"
+    },
+    "F60": {
+      "type": "verbatim",
+      "claim": "所有试件均在墩底切缝位置发生截面弯曲破坏，Mode A试件上部在G1切缝处发生弯曲破坏，Mode B试件上部在G2切缝处发生弯曲破坏。",
+      "doc": "R10",
+      "page": 123,
+      "section": "5.3.2 破坏模式分析",
+      "quote": "从图5.6-图5.9 试件的破坏可知，所有试件均在墩底切缝位置发生截面的弯曲\n破坏，Mode A 试件上部在G1 切缝位置发生截面的弯曲破坏，Mode B 试件上部在\nG2 切缝位置发生截面的弯曲破坏。"
+    },
+    "F61": {
+      "type": "verbatim",
+      "claim": "在0.24轴压比下，Mode B的STCRC4试件位移延性系数和极限转角分别比Mode A的STCRC2试件提高13.5%和41.4%。",
+      "doc": "R10",
+      "page": 124,
+      "section": "5.4.1 骨架曲线",
+      "quote": "0.24 轴压比下Mode B （STCRC4）试件的位移延\n性系数（图5.12（c））和极限转角（图5.12（d））分别比Mode A（STCRC2）试件\n提高13.5%和41.4%。"
+    },
+    "F62": {
+      "type": "verbatim",
+      "claim": "该文规定圆钢管直径与壁厚之比D/t不宜小于100，且不宜大于200。",
+      "doc": "R10",
+      "page": 170,
+      "section": "7.4 双柱式钢管约束钢筋混凝土桥墩构造措施和适用范围",
+      "quote": "②圆钢管直径与壁厚之比D/t 不宜小于100，且不宜大于200。"
+    },
+    "F63": {
+      "type": "verbatim",
+      "claim": "试验共测试 18 个试件（每种约束水平 2 个），混凝土核心为直径 102 mm（4 in.）、高 203 mm（8 in.）的圆柱。",
+      "doc": "R03",
+      "page": 3,
+      "section": "Experimental Study — Specimen geometry",
+      "quote": "Eighteen specimens (two for each confinement), confined\nas shown in Table 1, have been tested. The specimens were\nprepared by filling the steel sleeves with HSC rated at fc′ =\n71 MPa (10,300 psi). The core of the specimens (that is, the\nconcrete fill) has 102 mm (4 in.) diameter and 203 mm (8 in.)\nheight."
+    },
+    "F64": {
+      "type": "verbatim",
+      "claim": "Table 1 显示壁厚 3.1 mm 试件的实测极限约束压力为 18.7 MPa，低于按套筒屈服假定的 27.6 MPa。",
+      "doc": "R03",
+      "page": 4,
+      "section": "Experimental Study — Table 1",
+      "quote": "Table 1—Theoretical confinement of specimens\nNumerical \nsequence\nSleeve \nwall thick-\nness, mm\nAssumed ultimate \nconfining\npressure, MPa\nExperimental ulti-\nmate confining \npressure, MPa\nTheoretical peak \nstrength fcct, MPa\nExperimental \npeak strength \nfcce, MPa\n1\n0.0\n0.0\n0.0\n71.0\n71.0\n100.0\n2\n0.4\n3.4\n2.8\n94.5\n96.0\n101.0\n3\n0.8\n6.9\n5.9\n118.0\n118.0\n99.9\n4\n1.2\n10.3\n7.4\n141.0\n134.5\n95.4\n5\n1.6\n13.8\n10.9\n165.0\n148.0\n90.0\n6\n2.0\n17.2\n13.6\n189.7\n167.4\n88.3\n7\n2.3\n20.7\n15.2\n211.0\n181.0\n85.9\n8\n2.7\n24.1\n16.3\n235.0\n197.6\n84.1\n9\n3.1\n27.6\n18.7\n258.0\n222.0\n86.1\nfcce\nfcct\n------\n100%\n×"
+    },
+    "F65": {
+      "type": "verbatim",
+      "claim": "式(1)将钢套筒视为受均匀内压的薄壁圆筒，取环向应力 σθ 等于套筒钢屈服应力 448 MPa（65,000 psi）来计算壁厚 t=pD/(2σθ)。",
+      "doc": "R03",
+      "page": 3,
+      "section": "Design of Experimental Process",
+      "quote": "This results in the\nfollowing relation\n(1)\nwhere t is the sleeve wall thickness; p is the internal sleeve\npressure (that is, the specimen confinement); D is the internal\ndiameter of the sleeve; and σθ is the sleeve hoop pressure that\nis assumed to be equal to the yield stress of the sleeve steel:\n448 MPa (65,000 psi).",
+      "latex": "t = \\frac{pD}{2\\sigma_{\\theta}}",
+      "ref": "(1)"
+    },
+    "F66": {
+      "type": "verbatim",
+      "claim": "含钢率 1.5%、3.1%、4.6% 的破坏试件（1B、2B、3B）在破坏时形成倾角 65~70 度的剪切破坏面。",
+      "doc": "R03",
+      "page": 4,
+      "section": "Experimental Study — Test results",
+      "quote": "This is clearly indicated in\nFig. 5 for specimens with confining steel of 1.5, 3.1, and\n4.6% (1B, 2B, and 3B, respectively). At that time, shear fail-\nure plains inclined to 65 to 70 degrees were formed."
+    },
+    "F67": {
+      "type": "verbatim",
+      "claim": "作者预期螺旋箍筋的钢丝因承受纯单轴拉力而能发挥全部屈服应力，而非本文钢套筒中观察到的折减值。",
+      "doc": "R03",
+      "page": 7,
+      "section": "Analysis of test results — discussion",
+      "quote": "Because the spiral\nwires are subjected to pure uniaxial tension, they are expected\nto develop the full yield stress rather than the reduced values\nobserved herein."
+    },
+    "F68": {
+      "type": "verbatim",
+      "claim": "该文指出，CSCT 的隐含假设 1（MCFT 亦同）假定最大荷载时由混凝土承担的剪力 VR 受导致失效的主裂缝的特征裂缝宽度 w 所控制。",
+      "doc": "R04",
+      "page": 2,
+      "section": "2 Hypotheses Underlying the CSCT Theory",
+      "quote": "Hypothesis 1 The shear force, VR, carried by concrete at\nmaximum load is (in CSCT as well as MCFT)\nassumed to be controlled by a characteristic\ncrack width w of the dominant crack leading to\nfailure."
+    },
+    "F69": {
+      "type": "verbatim",
+      "claim": "该文给出 ACI 445 断裂力学委员会提出的尺寸效应因子公式 vu = v0λ（λ = 1/√(1+d/d0)），并指出 CSCT 的强度公式可化为与之直接比较的形式。",
+      "doc": "R04",
+      "page": 3,
+      "section": "3 Beam Shear Strength According to CSCT Ensuing from the Hypotheses, and Comparison with ACI-446",
+      "quote": "This equation is in a form readily comparable to the size\neffect factor λ proposed by ACI Committee 445, Fracture\nMechanics.",
+      "latex": "v_u = v_0\\lambda, \\quad \\lambda = \\frac{1}{\\sqrt{1 + d/d_0}}",
+      "ref": "(8)"
+    },
+    "F70": {
+      "type": "verbatim",
+      "claim": "该文指出，瑞士规范已将 CSCT 同时用于梁剪切与冲切（双向）剪切，而 Model Code 2010 仅将 CSCT 用于冲切剪切。",
+      "doc": "R04",
+      "page": 2,
+      "section": "1 Nature and Evolution of Size Effect Formulae in Design Codes",
+      "quote": "The Swiss\nCode22 has already adopted the CSCT for both the beam\nshear and punching (two-way) shear, while Model Code\n2010 has done so for the latter."
+    },
+    "F71": {
+      "type": "verbatim",
+      "claim": "该文报告的有限元结果表明，跨主斜裂缝传递的竖向力在小尺寸和大尺寸梁中分别仅占总剪力 Vc 的 18% 和 2.9%。",
+      "doc": "R04",
+      "page": 5,
+      "section": "4.2 Cross-Crack Stress Transmission",
+      "quote": "They represent for the\nbeams of small and large sizes, respectively, only 18 and\n2.9% of the total shear force Vc."
+    },
+    "F72": {
+      "type": "verbatim",
+      "claim": "该文作者认为，Muttoni 等将 CSCT 适配于冲切时得到的大尺寸渐近斜率 −0.4（而非 −0.5）并不正确，但至少不违反热力学第二定律。",
+      "doc": "R04",
+      "page": 9,
+      "section": "8 Comments on the Analogous Problem of Size Effect on Punching Shear Strength of Slabs",
+      "quote": "For punching they thus obtain a\nsize effect that ends with the asymptotic slope of −0.4 (instead\nof −0.5), which is not correct but at least does not violate the\nsecond law of thermodynamics."
+    },
+    "F73": {
+      "type": "verbatim",
+      "claim": "该文称CSCT的破坏准则涵盖残余抗拉强度、骨料咬合、销栓作用和受压弦杆倾斜四项贡献。",
+      "doc": "R06",
+      "page": 5,
+      "section": "Detailed reply to the criticism raised by Dönmez and Bažant",
+      "quote": "The failure criterion accounts for various contributions [2,7]: residual tensile \nstrength, aggregate interlock, dowelling action and inclination of compression chord."
+    },
+    "F74": {
+      "type": "verbatim",
+      "claim": "该文称即使Bažant在分析冲切试验结果时也观察到更缓的斜率，但他未将其用于设计而接受了偏保守的线弹性断裂力学斜率-1/2。",
+      "doc": "R06",
+      "page": 4,
+      "section": "General considerations on the consistency of the CSCT",
+      "quote": "It is interesting to note that even Bažant clearly observed \nsuch a milder slope in punching when analysing test results [13], although he has not \nconsidered it for design and has accepted for these cases the (conservative) linear‐\nelastic fracture mechanics slope of ‐1/2."
+    },
+    "F75": {
+      "type": "verbatim",
+      "claim": "该文称由于转动中心近似位于临界剪裂缝尖端，裂缝相对位移可用单一参数表征，例如纵筋高度处的裂缝宽度。",
+      "doc": "R06",
+      "page": 5,
+      "section": "Detailed reply to the criticism raised by Dönmez and Bažant",
+      "quote": "Yet, as the centre of \nrotations is located approximately at the tip of the critical shear crack, the crack relative \ndisplacements can be characterized by one parameter (refer to the linear profile of the \nhorizontal component of crack widths shown in Fig. 4b), as for instance the crack width at \nthe level of the reinforcement [7] or others [9]."
+    },
+    "F76": {
+      "type": "verbatim",
+      "claim": "该文称当设计假定抗弯钢筋无超配筋时，尺寸对受剪强度的影响强于几何相似试件，因为随尺寸增大抗弯配筋率也减小。",
+      "doc": "R06",
+      "page": 6,
+      "section": "Concluding remarks",
+      "quote": "For these cases, as \ndemonstrated in [10], the influence of size on shear strength is stronger than for geometrically \nscaled specimens (with constant flexural reinforcement ratio) as not only the size, but also the \namount of flexural reinforcement, are varied for increasing sizes (decreasing flexural reinforcement \nratio with increasing sizes)."
+    },
+    "F77": {
+      "type": "verbatim",
+      "claim": "该文称CSCT已被fib MC2010、瑞士规范和现行欧洲规范2草案等规范采纳。",
+      "doc": "R06",
+      "page": 1,
+      "section": "Introduction",
+      "quote": "This theory has been adopted by different codes (fib MC2010, \nSwiss Code, current draft of Eurocode 2) after in‐depth analysis of different scientific committees \nand extensive verification."
+    },
+    "F78": {
+      "type": "verbatim",
+      "claim": "第二代超塑化剂包括SMF和SNF类，而PCE类超塑化剂被归为新一代。",
+      "doc": "R07",
+      "page": 3,
+      "section": "2. Superplasticizers in Concrete",
+      "quote": "The second-generation admixtures encompass \nSMF and SNF-based SPs, while PCE-based SPs are classified as new-generation."
+    },
+    "F79": {
+      "type": "verbatim",
+      "claim": "Tkaczewska的研究揭示，使用超塑化剂可减少混凝土中的孔隙，从而提高材料的早期和后期强度。",
+      "doc": "R07",
+      "page": 5,
+      "section": "3.1. Compressive Strength",
+      "quote": "Tkaczewska’s \nstudy [22] further revealed a reduction in voids in concrete when superplasticizers \nare utilized, leading to increased early and late strength in the material."
+    },
+    "F80": {
+      "type": "verbatim",
+      "claim": "研究表明，PCE类外加剂在降低混凝土吸水率方面比LS、SMF和SNF类超塑化剂更有效。",
+      "doc": "R07",
+      "page": 8,
+      "section": "4.1. Sorptivity",
+      "quote": "Furthermore, the research demonstrated that \nPCE-based admixtures were more effective in reducing the sorptivity of concrete \nthan LS, SMF, and SNF superplasticizers."
+    },
+    "F81": {
+      "type": "verbatim",
+      "claim": "Table 1显示，不掺超塑化剂的Valnor CRA混凝土在再生骨料掺量0%、10%、25%、50%、100%时，Ecm28分别为40.5、39.1、34.6、29.2和21.1。",
+      "doc": "R07",
+      "page": 7,
+      "section": "3.3. Static Elastic and Dynamic Modulus of Concrete",
+      "quote": "Table 1. MoE of recycled aggregate concrete with no SP and with SP [18]. \n \nRA incorporation (%) \n0 \n \n10 \n \n25 \n \n50 \n \n100 \n \nEcm28 St. Dev Ecm28 St. Dev Ecm28 St Dev Ecm28 St Dev Ecm28 St Dev \nNo SP \nValnor CRA \n40.5 \n0.2 \n39.1 \n0.4 \n34.6 \n0 \n29.2 \n0.9 \n21.1 \n0.5"
+    },
+    "F82": {
+      "type": "verbatim",
+      "claim": "该综述强调，掺入超塑化剂的混凝土在力学性能（抗压强度、抗折强度和弹性模量）和耐久性能（吸水率和氯离子渗透）方面均优于不掺超塑化剂的混凝土。",
+      "doc": "R07",
+      "page": 10,
+      "section": "5. Conclusions and Recommendations",
+      "quote": "The overview underscores that the inclusion of SPs in concrete enhances both \nmechanical (compressive strength, flexural strength, and modulus of elasticity) \nand durability properties (water sorptivity and chloride penetration) compared to \nconcrete without SPs."
+    },
+    "F83": {
+      "type": "verbatim",
+      "claim": "研究以柱长径比(L/D)和钢管径厚比(D/t)为变化参数，对10根圆钢管约束钢筋混凝土柱的轴压力学性能进行了试验研究。",
+      "doc": "R08",
+      "page": 1,
+      "section": "摘要",
+      "quote": "以柱长\n径比( L/D ) 、钢管径厚比( D/t ) 为变化参数，对10 根圆钢管约束钢筋混凝土柱的轴压力学性能进行试验研究，并对各试\n件的破坏模式、承载力及荷载-钢管应力曲线进行对比分析。"
+    },
+    "F84": {
+      "type": "verbatim",
+      "claim": "中长柱(L/D为6、10)试件采用刀口铰施加轴向力，轴向荷载采用校核并修正后的压力机表显读数。",
+      "doc": "R08",
+      "page": 2,
+      "section": "1.2 加载装置及测量方案",
+      "quote": "对于中长柱( L /D 为6、10) ，由于构件较长，试验过\n程易产生整体挠曲，为安全起见，采用刀口铰对试件\n施加轴向力，轴向荷载则采用校核并修正后的压力\n机表显读数。"
+    },
+    "F85": {
+      "type": "verbatim",
+      "claim": "短柱(L/D=3)试件发生典型的剪切破坏，剪切角在60°左右。",
+      "doc": "R08",
+      "page": 3,
+      "section": "2.1 破坏模式",
+      "quote": "对于短\n柱( L/D = 3) ，构件发生典型的剪切破坏，剪切角在\n60°左右。"
+    },
+    "F86": {
+      "type": "verbatim",
+      "claim": "建议设计方法将钢管约束钢筋混凝土柱的截面承载力N0取为钢管所承担纵向荷载、约束混凝土承载力和钢筋承载力三者的叠加。",
+      "doc": "R08",
+      "page": 9,
+      "section": "4.3 建议设计方法",
+      "quote": "为考虑这种差别，将钢管约束钢筋混\n凝土柱的截面承载力N0 考虑为钢管所承担纵向荷\n载、约束混凝土的承载力和钢筋承载力的叠加，表达\n式为",
+      "latex": "N_0 = \\sigma_{tv}A_t + f_{cc}A_c + f_{ys}A_s",
+      "ref": "(9)"
+    },
+    "F87": {
+      "type": "verbatim",
+      "claim": "有限元模型验证表明采用L/500的缺陷幅值时有限元结果与试验吻合较好，故统一采用L/500的缺陷幅值进行分析。",
+      "doc": "R08",
+      "page": 7,
+      "section": "3.3 初始缺陷及模型验证",
+      "quote": "经过多次试算，发现采用\nL /500 的缺陷幅值时有限元结果与试验吻合较好\n( 图4) ，故统一采用L /500 的缺陷幅值进行分析。"
+    },
+    "F88": {
+      "type": "verbatim",
+      "claim": "该文认为，传统的土木工程在面对日益复杂且不确定性增加的工程需求、质量要求和环境条件时往往暴露出一定的局限性。",
+      "doc": "R09",
+      "page": 2,
+      "section": "1. 引言",
+      "quote": "然而，传统的土木工程在\n实际应用过程中，面对日益复杂且不确定性增加的工程需求、质量要求和环境条件时，往往暴露出一定\n的局限性。"
+    },
+    "F89": {
+      "type": "verbatim",
+      "claim": "林博等学者建立了城市规划案例数据库，利用机器学习和深度学习技术对城市布局进行智能规划，并以温州中央绿轴为例验证了该方法的可行性与有效性。",
+      "doc": "R09",
+      "page": 3,
+      "section": "2.2. 智能设计",
+      "quote": "此外，林博等[8]学者还建立了城市规划案例数据库，利用机器学习和深度学习技术，对城市布局进\n行智能规划。他们以温州中央绿轴为例，成功验证了这一方法的可行性与有效性。"
+    },
+    "F90": {
+      "type": "verbatim",
+      "claim": "该文指出，利用人工智能技术可以实时检测混凝土浇筑过程中的温度变化和应力情况。",
+      "doc": "R09",
+      "page": 5,
+      "section": "3. 人工智能在土木工程中的应用研究趋势",
+      "quote": "例如利用人工智能技术可以实时\n检测混凝土浇筑过程中的温度变化和应力情况。"
+    },
+    "F91": {
+      "type": "verbatim",
+      "claim": "该文在共性参数框架下将关键词控制面板的阈值参数设定为13，以过滤低频关键词并构建关键词共现网络图。",
+      "doc": "R09",
+      "page": 6,
+      "section": "3. 人工智能在土木工程中的应用研究趋势",
+      "quote": "在共性参数框架下，通过设定关键词控制面板的阈值参数为13，有效过滤了低频关键词，聚焦于核\n心议题，构建出关键词共现网络图(如图4 所示)。"
+    },
+    "F92": {
+      "type": "verbatim",
+      "claim": "该文表2的关键词中心性统计中，“人工智能”以0.58的中心性位列第一。",
+      "doc": "R09",
+      "page": 7,
+      "section": "3. 人工智能在土木工程中的应用研究趋势",
+      "quote": "序号 \n关键词 \n中心性 \n序号 \n关键词 \n中心性 \n1 \n人工智能 \n0.58 \n16 \n发展趋势 \n0.06 \n2 \n机器人 \n0.21"
+    },
+    "F93": {
+      "type": "verbatim",
+      "claim": "该通梁式节点中，钢管在对应的梁位置被完全截断，梁的纵向钢筋连续穿过节点区。",
+      "doc": "R11",
+      "page": 1,
+      "section": "Abstract",
+      "quote": "In this connection system, the steel tube is completely curtailed at the corresponding beam\nlocation, with the longitudinal steel reinforcing bars for the beam remaining continuous through the connection region."
+    },
+    "F94": {
+      "type": "verbatim",
+      "claim": "系列II试件的局部承压区直径 d 恒定为 400 mm。",
+      "doc": "R11",
+      "page": 5,
+      "section": "Tests of Connection Zone",
+      "quote": "The local\ncompression zone had a constant diameter d ¼ 400 mm, while\nthe width and height of the ring beam outside the local compression\nwere b and h, respectively."
+    },
+    "F95": {
+      "type": "verbatim",
+      "claim": "系列II全部27个试件的破坏模式受高度系数β的显著影响。",
+      "doc": "R11",
+      "page": 6,
+      "section": "Tests of Connection Zone",
+      "quote": "Fig. 18 shows a bar graph of the failure modes of all\n27 specimens, from which it can be seen that the failure modes\nare significantly affected by height factor β."
+    },
+    "F96": {
+      "type": "verbatim",
+      "claim": "系列I试件CFT1的钢管直径×壁厚为500×6 mm、环梁截面宽×高为350×600 mm，其开裂荷载为7,000 kN、极限荷载为10,151 kN。",
+      "doc": "R11",
+      "page": 4,
+      "section": "Tests of Connections with CFST Columns",
+      "quote": "Table 1. Specimen Parameters and the Experimental and Calculated Loads for Series I Tests\nSpecimen\nd × t\n(mm × mm)\nb × h\n(mm × mm)\nfcu (MPa)\nRing bars in\nring beam\nCracking\nload Ncr (kN)\nUltimate\nload Nu (kN)\nNcal (kN)\nNcal=Nu\nCFT1\n500 × 6\n350 × 600\n46.3/40.8/44.7\n3ϕ14@75\n7,000\n10,151\n14,670\n1.45"
+    },
+    "F97": {
+      "type": "verbatim",
+      "claim": "该文提出了预测CFST柱与RC梁节点极限轴压承载力的经验公式 Ncal = βcs·(β·0.85·fc·A1·√(A2/A1))。",
+      "doc": "R11",
+      "page": 11,
+      "section": "Prediction of Axial Compressive Strength of Connection Zone",
+      "quote": "Thus, the empirical formula for predicting the ultimate axial\ncompressive strength of the connection between CFST columns\nand RC beams is proposed as",
+      "latex": "N_{\\mathrm{cal}}=\\beta_{cs}\\left(\\beta\\,0.85 f_{c} A_{1}\\sqrt{\\frac{A_{2}}{A_{1}}}\\right)",
+      "ref": "(8)"
+    },
+    "F98": {
+      "type": "verbatim",
+      "claim": "短柱试件直径为200mm、柱高度为600mm，钢管厚度为1.5mm、含钢率为3%，柱截面纵筋为4B20、纵筋配筋率为4%，箍筋为A8@200。",
+      "doc": "R12",
+      "page": 2,
+      "section": "2.1 试件设计及加载方法",
+      "quote": "短柱直径为200mm，柱高度为600mm，钢管厚度为1.5mm，钢管含钢率为3%，\n柱截面纵筋为4B20，纵筋配筋率为4%，箍筋为A8@200；"
+    },
+    "F99": {
+      "type": "verbatim",
+      "claim": "角柱节点2个方向伸出梁，边柱节点3个方向伸出梁，中柱节点4个方向伸出梁。",
+      "doc": "R12",
+      "page": 3,
+      "section": "2.2 材性试验",
+      "quote": "角柱节点2 个方向伸出梁，边柱节点3 个方向伸出\n梁，中柱节点4 个方向伸出梁，如图1 所示。"
+    },
+    "F100": {
+      "type": "verbatim",
+      "claim": "节点试件CTRCJ-180-2、CTRCJ-180-3、CTRCJ-180-4的峰值承载力分别为2094kN、2299kN和2510kN，较轴压短柱平均峰值荷载分别低29.8%、22.9%和15.8%。",
+      "doc": "R12",
+      "page": 4,
+      "section": "3.3 承载能力对比分析",
+      "quote": "表2 承载能力对比 \n试件编号 \nNu (kN) \nεu \nk \n相对CTRC 百分比 \nCTRC-200-a \n2950 \n5030 \n1.416  \nNum =2982 \nkm =1.410 \nCTRC-200-b \n3014 \n5493 \n1.403  \nCTRCJ-180-2 \n2094 \n4194 \n1.594  \n-29.8% \n13.1% \nCTRCJ-180-3 \n2299 \n3603 \n1.618  \n-22.9% \n14.8% \nCTRCJ-180-4 \n2510 \n4476 \n1.697  \n-15.8% \n20.4% \n注：表中Nu 为峰值承载力，εu 为峰值应变，k=( N/Nu) / (ε/εu)（归一化数值）为屈服前弹性刚度，Num 为轴压短柱平均峰值荷载，\nkm 为轴压短柱平均弹性刚度。"
+    },
+    "F101": {
+      "type": "verbatim",
+      "claim": "试验结果表明，轴压短柱破坏形式为剪切破坏，而节点的破坏形式为核心区混凝土压溃破坏。",
+      "doc": "R12",
+      "page": 1,
+      "section": "摘要",
+      "quote": "试验结果表明，轴压短柱破坏形式为剪切破坏，节点\n的破坏形式为核心区混凝土压溃破坏；"
+    }
+  }
+}

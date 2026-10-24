@@ -56,7 +56,7 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 
 	pageCount := reader.NumPage()
 
-	// 预扫描：找出"产生过 NUL 的字体"（坏字体整层跳过，见 scanBadFonts）。
+	// 预扫描：找出"解码不可信的字体"（NUL 任一出现 / FFFD 占比过半，坏字体整层跳过，见 scanBadFonts）。
 	// 扫描件 OCR 垃圾层（如 HiddenVertOCR）是 NUL 的主要来源。
 	badFonts := scanBadFonts(reader, pageCount)
 	if len(badFonts) > 0 {
@@ -89,28 +89,55 @@ func ParsePDF(r io.ReaderAt, size int64) (*ParsedDocument, error) {
 	return doc, nil
 }
 
-// scanBadFonts 预扫描全部页面，收集"产生过 NUL(\x00) 字节的字体"。
+// scanBadFonts 预扫描全部页面，收集"解码不可信的字体"集合。
 //
-// 依据：正常排版字体几乎从不会产生 NUL——NUL 是解码失败的产物（ToUnicode CMap 把
-// 字形码映射到 U+0000，或扫描件 OCR 垃圾层解码出错）。某字体只要在任一处产生过 NUL，
-// 说明它的解码是坏的，整层跳过。典型案例：扫描件 OCR 的 HiddenVertOCR 竖排垃圾层
-// （NUL+FFFD+乱码混入正文，且 NUL 会被 PostgreSQL text 类型拒绝 → SQLSTATE 22021）。
+// 依据：正常排版字体几乎从不会产生解码失败字符——失败字符只有两种来源：
+// NUL(\x00)：ToUnicode CMap 把字形码映射到 U+0000。典型案例：扫描件 OCR 的
+//
+//	HiddenVertOCR 竖排垃圾层（NUL+FFFD+乱码混入正文，且 NUL 会被 PostgreSQL
+//	text 类型拒绝 → SQLSTATE 22021）。
+//
+// U+FFFD 替换符：字体无 ToUnicode 映射或映射表损坏，大片字形解不出来。
+//
+//	典型案例：SCIRP 论文 PDF（黄金评测集语料）正文整页全是 \uFFFD，quote 校验
+//	全部 DROPPED。此类字体按"FFFD 占比"判定——某字体在全文档范围 FFFD 占比
+//	过半即视为坏层整层剔除（正常字体只会在个别字符上偶发 FFFD，远达不到一半）。
 //
 // 注意：不能按字体名黑名单（各 OCR 工具的层命名各不相同：Hidden*OCR / ABBYY / Adobe…），
-// 按"内容质量信号（是否产 NUL）"判定更通用，对正常排版 PDF 零影响（无字体产 NUL）。
+// 按"内容质量信号（NUL 或 FFFD 占比）"判定更通用，对正常排版 PDF 零影响。
 func scanBadFonts(reader *pdf.Reader, pageCount int) map[string]bool {
 	bad := make(map[string]bool)
+	type fontStat struct {
+		total, fail int
+	}
+	stats := make(map[string]*fontStat)
 	for i := 1; i <= pageCount; i++ {
 		for _, t := range reader.Page(i).Content().Text {
-			if strings.ContainsRune(t.S, '\x00') {
-				bad[t.Font] = true
+			st := stats[t.Font]
+			if st == nil {
+				st = &fontStat{}
+				stats[t.Font] = st
 			}
+			st.total++
+			if strings.ContainsRune(t.S, '\x00') {
+				bad[t.Font] = true // NUL：任一出现即坏（还会炸 PostgreSQL）
+				st.fail++
+				continue
+			}
+			if strings.ContainsRune(t.S, '\uFFFD') {
+				st.fail++
+			}
+		}
+	}
+	for name, st := range stats {
+		if st.total > 0 && float64(st.fail)/float64(st.total) > 0.5 {
+			bad[name] = true
 		}
 	}
 	return bad
 }
 
-// filterBadFonts 从字形列表剔除坏字体（产生过 NUL 的字体）的字形。
+// filterBadFonts 从字形列表剔除坏字体（解码不可信字体）的字形。
 func filterBadFonts(text []pdf.Text, badFonts map[string]bool) []pdf.Text {
 	if len(badFonts) == 0 {
 		return text
@@ -173,18 +200,8 @@ func pageBlocks(p pdf.Page, badFonts map[string]bool) (blocks []Block, err error
 		}
 	}
 
-	// 排序遍历：保留原始下标，公式剔除用原始下标判断
-	order := make([]int, len(content.Text))
-	for i := range order {
-		order[i] = i
-	}
-	sort.Slice(order, func(i, j int) bool {
-		ti, tj := content.Text[order[i]], content.Text[order[j]]
-		if ti.Y != tj.Y {
-			return ti.Y > tj.Y
-		}
-		return ti.X < tj.X
-	})
+	// 排序遍历：layoutPage 给出分栏/分行后的阅读顺序，idx 仍是 content.Text 的原始下标
+	lines := layoutPage(content.Text)
 
 	var textBuf strings.Builder
 	flushText := func() {
@@ -196,47 +213,55 @@ func pageBlocks(p pdf.Page, badFonts map[string]bool) (blocks []Block, err error
 
 	tableRendered := make([]bool, len(tables))
 	formulaRendered := make([]bool, len(formulas))
-	lastY := 0.0
-	for pos, idx := range order {
-		t := content.Text[idx]
-		ti := -1
-		for k := range tables {
-			if t.Y >= tables[k].bot-1 && t.Y <= tables[k].top+1 {
-				ti = k
-				break
+	for li, ln := range lines {
+		for k, idx := range ln.idx {
+			t := content.Text[idx]
+			ti := -1
+			for j := range tables {
+				if t.Y >= tables[j].bot-1 && t.Y <= tables[j].top+1 {
+					ti = j
+					break
+				}
 			}
-		}
-		if ti >= 0 {
-			if !tableRendered[ti] {
-				flushText()
-				blocks = append(blocks, Block{Kind: BlockTable, Content: tables[ti].md})
-				tableRendered[ti] = true
+			if ti >= 0 {
+				if !tableRendered[ti] {
+					flushText()
+					blocks = append(blocks, Block{Kind: BlockTable, Content: tables[ti].md})
+					tableRendered[ti] = true
+				}
+				continue
 			}
-			lastY = t.Y
-			continue
-		}
-		if fi, ok := formulaOfIdx[idx]; ok {
-			if !formulaRendered[fi] {
-				flushText()
-				f := formulas[fi]
-				blocks = append(blocks, Block{
-					Kind:    BlockFormula,
-					Content: f.Text,
-					Left:    f.Left,
-					Right:   f.Right,
-					Top:     f.Top,
-					Bot:     f.Bot,
-				})
-				formulaRendered[fi] = true
+			if fi, ok := formulaOfIdx[idx]; ok {
+				if !formulaRendered[fi] {
+					flushText()
+					f := formulas[fi]
+					blocks = append(blocks, Block{
+						Kind:    BlockFormula,
+						Content: f.Text,
+						Left:    f.Left,
+						Right:   f.Right,
+						Top:     f.Top,
+						Bot:     f.Bot,
+					})
+					formulaRendered[fi] = true
+				}
+				continue
 			}
-			lastY = t.Y
-			continue
+			if k == 0 && li > 0 && textBuf.Len() > 0 {
+				switch {
+				case ln.breakBefore:
+					textBuf.WriteByte('\n')
+				case ln.stripHyphen:
+					if s := textBuf.String(); strings.HasSuffix(s, "-") {
+						textBuf.Reset()
+						textBuf.WriteString(strings.TrimSuffix(s, "-"))
+					}
+				case ln.spaceBefore:
+					textBuf.WriteByte(' ')
+				}
+			}
+			textBuf.WriteString(t.S)
 		}
-		if pos > 0 && t.Y < lastY-2.0 {
-			textBuf.WriteByte('\n')
-		}
-		lastY = t.Y
-		textBuf.WriteString(t.S)
 	}
 	flushText()
 	return blocks, nil
@@ -249,8 +274,7 @@ func pageBlocks(p pdf.Page, badFonts map[string]bool) (blocks []Block, err error
 // 0x0A 映射成真实汉字（常规子集是"页"，粗体子集是"端/磺/境/稀/书"等），于是
 // 每行末尾、段落折行处都被混入一个假字符（见 AGENTS.md 的踩坑记录）。
 // Content() 内部正确跟踪文本矩阵（Tm/Td/T*），返回带 X/Y 坐标的逐字文本，
-// 这里再按 (Y↓, X↑) 排序即可还原版面阅读顺序，且不产生任何假字符。
-// pageText 按版面阅读顺序 (Y↓, X↑) 组装整页文本，坏字体（OCR 垃圾层）字形剔除后参与。
+// 这里交给 layoutPage 还原分栏/分行/软换行，不产生任何假字符。
 func pageText(p pdf.Page, badFonts map[string]bool) (text string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -261,27 +285,7 @@ func pageText(p pdf.Page, badFonts map[string]bool) (text string, err error) {
 
 	content := p.Content()
 	content.Text = filterBadFonts(content.Text, badFonts) // 坏字体字形整层剔除（NUL 来源）
-	sort.Slice(content.Text, func(i, j int) bool {
-		if content.Text[i].Y > content.Text[j].Y {
-			return true
-		}
-		if content.Text[i].Y < content.Text[j].Y {
-			return false
-		}
-		return content.Text[i].X < content.Text[j].X
-	})
-
-	const lineTol = 2.0 // 同一视觉行允许的 Y 波动（pt），用于区分上下两行
-	var sb strings.Builder
-	lastY := 0.0
-	for i, t := range content.Text {
-		if i > 0 && t.Y < lastY-lineTol {
-			sb.WriteByte('\n')
-		}
-		lastY = t.Y
-		sb.WriteString(t.S)
-	}
-	return sb.String(), nil
+	return layoutText(content.Text), nil
 }
 
 // trimTrailingJunk 返回 PDF 有效部分的结束位置。
