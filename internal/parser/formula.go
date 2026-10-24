@@ -121,7 +121,7 @@ func DetectFormulas(content pdf.Content) []FormulaRegion {
 		}
 		if !isInlineFormula(content, curRows) {
 			cur.Text = rowsToText(curRows)
-			if isRealFormula(cur.Text) {
+			if isRealFormula(cur.Text) && regionTrustworthy(curRows, cur.Text) {
 				regions = append(regions, cur)
 			}
 		}
@@ -199,6 +199,45 @@ func isInlineFormula(content pdf.Content, rows []formulaRow) bool {
 			if t.X >= left-formulaInlineGap && t.X <= left {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// regionTrustworthy 判断公式区域是否可信。
+//
+// 字体指纹里 timesnewromanps 是刻意放宽的宽松匹配（2026-09-12 为修复 Word 正体
+// 公式 a=b+c 漏检）——但汉斯出版社等 Word 排版 PDF 的英文/数字正文同样全是
+// Times New Roman，纯靠字体会把整行英文、表格数字行、小节号全部误判成公式
+// （实测误报：AI、2.3.、"5 90 20 27"、整段 Times 英文摘要）。因此：
+//   - 区域含任一强指纹字体（CambriaMath/MTExtra/Euclid/Symbol/ZJSJ）→ 直接可信；
+//     这些字体在正文中几乎不出现，误报概率可忽略（如 x² 上标场景无运算符也放行）；
+//   - 区域全部由 Times 构成 → 必须含数学特征字符才可信（hasMathFeature）。
+func regionTrustworthy(rows []formulaRow, text string) bool {
+	for _, r := range rows {
+		for _, g := range r.glyphs {
+			n := strings.ToLower(g.t.Font)
+			if !strings.Contains(n, "timesnewromanps") {
+				return true // 存在强指纹字体
+			}
+		}
+	}
+	return hasMathFeature(text)
+}
+
+// hasMathFeature 判断文本是否含数学特征字符（运算符/希腊字母/数学符号）。
+// 独立成行的真实公式几乎必然含 =、+、±、×、÷、<、> 之一或希腊字母；
+// 纯英文单词、小节号（2.3.）、表格数字（5 90 20 27）都没有。
+// 注意不含 ASCII 连字符 '-'：参考文献页码（70-80）、英文连字符太常见，会放进误报。
+func hasMathFeature(text string) bool {
+	for _, r := range text {
+		switch {
+		case r >= 0x0370 && r <= 0x03FF: // 希腊字母 α β σ π θ …
+			return true
+		case r >= 0x2200 && r <= 0x22FF: // 数学运算符 ∑ ∫ √ ≤ ≥ ≠ ∞ …
+			return true
+		case r == '=' || r == '+' || r == '±' || r == '×' || r == '÷' || r == '−' || r == '<' || r == '>':
+			return true
 		}
 	}
 	return false

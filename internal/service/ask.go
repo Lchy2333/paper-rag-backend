@@ -61,7 +61,7 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 	searchStart := time.Now()
 	results, err := s.store.Search(ctx, vectors[0], pool, s.cfg.SimilarityThreshold, store.SearchOptions{
 		DocIDs:    q.DocumentIDs,
-		UseHybrid: true,
+		UseHybrid: resolveHybrid(q.Hybrid),
 		QueryText: q.Query,
 	})
 	if err != nil {
