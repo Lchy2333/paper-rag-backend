@@ -1,0 +1,83 @@
+# config.test.yaml 模板 —— 黄金评测专用环境（端口 8081，独立测试库）
+# 用法：复制为 config.test.yaml 并填入真实密钥；config.test.yaml 已 gitignore，不入库。
+server:
+  host: "0.0.0.0"
+  # 测试服务用 8081 端口，避免与生产(8080)同时运行时冲突
+  port: 8081
+  max_upload_size_mb: 20
+  upload_dir: "./uploads"
+  read_timeout_sec: 60
+  write_timeout_sec: 300
+  # 服务间鉴权留空 = 本地不校验 X-API-Key（调用方仍需带 X-User-ID）
+  api_key: ""
+  # 超级用户：全库检索/管理，且 /ask 仅限此处列出的 user_id
+  # 评测脚本 run_eval.py 的 GOLDEN_USER_ID 必须在此名单内
+  admin_users:
+    - "YOUR-USER-UUID"
+
+log:
+  level: "debug"
+
+ai:
+  provider: "openai-compatible"
+  # chat 走火山方舟
+  base_url: "https://ark.cn-beijing.volces.com/api/plan/v3/"
+  api_key: "YOUR-ARK-API-KEY"
+  timeout_sec: 300
+
+  embedding:
+    # 向量化：SiliconFlow BAAI/bge-m3（1024 维，与数据库 VECTOR(1024) 一致）。
+    # 注意：切换 embedding 模型后必须重算全部 chunk 向量，否则查询向量与库内向量不同源。
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "YOUR-SILICONFLOW-API-KEY"
+    model: "BAAI/bge-m3"
+    dimension: 1024
+    batch_size: 16
+
+  chat:
+    # 留空则回退 ai.base_url / ai.api_key（方舟）
+    model: "deepseek-v4-flash"
+    temperature: 0.2
+    max_tokens: 2048
+
+  rerank:
+    # 重排序（精排）：base_url/api_key 必须成对显式填——
+    # 留空会回退到 ai.base_url（方舟没有 rerank 接口，会报错）。
+    enabled: true
+    model: "BAAI/bge-reranker-v2-m3"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "YOUR-SILICONFLOW-API-KEY"
+    candidate_pool: 30
+    top_n: 0
+    timeout_sec: 15
+
+  formula:
+    # 公式 OCR（仅重新入库含公式 PDF 时调用，评测不触发）
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "YOUR-SILICONFLOW-API-KEY"
+    model: "deepseek-ai/DeepSeek-OCR"
+    temperature: 0.1
+    max_tokens: 1024
+
+rag:
+  chunk_size: 800
+  chunk_overlap: 150
+  top_k: 5
+  similarity_threshold: 0.0
+  no_context_reply: "抱歉，在已上传的文档中没有找到与您问题相关的内容。"
+
+render:
+  # PDF 渲染（公式区域截图）：用 PyMuPDF（pip install pymupdf）
+  python_cmd: "python"
+  dpi: 150
+  work_dir: ""
+
+database:
+  type: "postgres"
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "${TEST_DATABASE_PASSWORD}"   # 走环境变量，不写明文
+  dbname: "paper_rag_test"
+  sslmode: "disable"
+  max_conns: 5

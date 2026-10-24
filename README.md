@@ -355,37 +355,25 @@ event: error      data: {"error":"..."}                            # 检索中�
 
 ## 黄金测试集（goldentest/）
 
-用于定量评估 RAG 的**检索质量（v2）**与**端到端回答质量（v3）**，替代"肉眼感觉"式验收。语料为 5 篇合成论文（**PDF 固定，不再重新生成**），事实库 + 问题集人工维护：
+真实论文语料的**检索+生成双轴评测体系**，思路与完整用法见 [goldentest/README.md](goldentest/README.md)。
 
 ```
 goldentest/
-├── pdf/                  # 语料：5 篇合成论文 PDF（固定）
-├── parsed/               # （预留）解析后的规范文本
-├── reports/              # 评测报告（eval_<时间戳>.json）
-├── facts.json            # 事实库：atomic 30 条（与 PDF 逐字一致）+ distractors 20 条（不在语料）
-├── golden_queries.json   # 问题集：30 条原子问题（带前提）+ 20 条干扰问题
-└── eval/main.go          # 评测脚本
+├── README.md              # 评测体系思路 + 本地跑法（入口文档）
+├── AGENT_PROMPT.md          # fact 标注 agent 提示词（quote 铁律 + nz 归一化）
+├── data/                    # 入 git：纯文本数据
+│   ├── docs.json            #   语料台账（12 篇真实论文/规范，含 sha256）
+│   ├── facts.json           #   证据原子库（101 条 verbatim fact）
+│   └── golden_queries.json  #   题目（双轴 R1-R4 × A1-A4 难度标签）
+├── tools/
+│   ├── g0_check.py          #   G0 数据门禁：页级（pymupdf）+ chunk 级（数据库）
+│   └── run_eval.py          #   评测 runner：调 /search + /ask，输出检索+生成指标
+├── corpus/                  # gitignore：PDF 语料（sha256 校验见 data/docs.json）
+└── results/                 # gitignore：评测产物
 ```
 
-**两类标注的分工**：
-- `facts.json` → `atomic`：原子事实，**逐字与 PDF 一致**（v1/v2 靠内容匹配定位，是"语义锚点"）；`distractors`：干扰项，**语料中不存在的假说法**（专测模型会不会编造）。
-- `golden_queries.json`：原子问题带"前提/语境"（如"在澄江实验站的土壤水文学研究中…"），答案即对应事实；干扰问题期望模型**拒答/不编造**。
+**快速上手**：起 test 环境（模板 `config/config.test.example.yaml`）→ 设 `GOLDEN_USER_ID`/`GOLDEN_DSN` 环境变量 → `cd goldentest/tools` 跑 `g0_check.py --db`（数据门禁）与 `run_eval.py`（评测，支持 `--hybrid/--rerank` 消融开关）。完整命令与思路讲解见 [goldentest/README.md](goldentest/README.md)。
 
-**跑评测**（密码走环境变量）：
-
-```powershell
-$env:TEST_DATABASE_PASSWORD = "你的数据库密码"
-go run ./goldentest/eval                          # v1 一致性校验（无需 DB/Ollama）
-go run ./goldentest/eval -retrieval               # + v2 检索 Recall@K/MRR
-go run ./goldentest/eval -answer                  # + v3 问答（端到端 + 防幻觉，需 chat 模型）
-go run ./goldentest/eval -ingest -retrieval -answer  # 重灌语料 + 全部
-```
-
-**报告为 JSON**（`reports/eval_<时间戳>.json`），含 `ingest / v1 / v2 / v3` 四段 + 逐条问题结果；控制台只打印关键指标摘要。
-
-- **v1 一致性校验**：原子事实必须逐字在语料；干扰项必须**不在**语料（缺席校验）。任意标注损坏以非零码退出（可接 CI）。
-- **v2 检索评测**：问题 embedding → 库内向量检索 topK → 判断含目标事实的 chunk 是否命中 → `Recall@1/3/5/10` + `MRR`；干扰项跳过（不在语料）。`-ingest` 会先删除同名旧文档再重灌。
-- **v3 问答评测**：走真实 `/ask` 链路（检索 + LLM 生成），LLM 裁判判分——原子问题 `correct/partial/wrong`，干扰问题 `ok/hallucinated`（是否编造）；并据回答的 citations 反推检索命中，输出**端到端诊断矩阵**（定位问题在检索还是生成）。
 
 ## 测试
 
