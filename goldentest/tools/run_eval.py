@@ -130,11 +130,23 @@ def post_ask(base_url: str, user_id: str, query: str, hybrid: bool = None,
     return r.json()["answer"]
 
 
+# 拒答判定：/ask 的 answer 出现这些特征即视为正确拒答（对应后端 no_context_reply 语义）
+REFUSE_MARKERS = [
+    "没有找到", "未找到", "无法回答", "找不到", "抱歉",
+    "没有相关", "未收录", "没有检索到", "不存在于", "not found",
+]
+
+
+def is_refused(answer: str) -> bool:
+    return any(m in answer for m in REFUSE_MARKERS)
+
+
 def eval_query(q: dict, doc_map: dict, base_url: str, user_id: str, top_k: int, ask: bool,
                hybrid: bool = None, rerank: bool = None) -> dict:
     ev = q["evidence"]
     essential = [e for e in ev if e.get("role") == "essential"]
     supporting = [e for e in ev if e.get("role") != "essential"]
+    behavior = q.get("expected_behavior", "answer")
 
     def gold_key(e):
         d = doc_map.get(e["doc"])
@@ -142,7 +154,8 @@ def eval_query(q: dict, doc_map: dict, base_url: str, user_id: str, top_k: int, 
 
     res = {"id": q["id"], "question": q["question"], "top_k": top_k,
            "hybrid": hybrid if hybrid is not None else "default(true)",
-           "rerank": rerank if rerank is not None else "default(config)"}
+           "rerank": rerank if rerank is not None else "default(config)",
+           "behavior": behavior}
     resp = post_search(base_url, user_id, q["question"], top_k, hybrid=hybrid, rerank=rerank)
     results = resp["results"]
     ranks = [(i + 1, r) for i, r in enumerate(results)]
@@ -182,9 +195,12 @@ def eval_query(q: dict, doc_map: dict, base_url: str, user_id: str, top_k: int, 
     if ask:
         a = post_ask(base_url, user_id, q["question"], hybrid=hybrid, rerank=rerank)
         cite_keys = {(c["document_id"], c["page"]) for c in a.get("citations", [])}
+        ans_text = a.get("answer", "")
         res["answer"] = {
-            "text": a.get("answer", ""),
-            "citation_page_recall": sum(1 for e in essential if gold_key(e) in cite_keys) / len(essential),
+            "text": ans_text,
+            "citation_page_recall": (sum(1 for e in essential if gold_key(e) in cite_keys) / len(essential)
+                                      if essential else 0.0),
+            "refused": is_refused(ans_text),
             "citations": [
                 {"filename": c["filename"][:36], "page": c["page"], "score": round(c.get("score", 0), 4)}
                 for c in a.get("citations", [])
@@ -246,19 +262,28 @@ def main():
     if not rows:
         sys.exit("没有成功的题目")
 
-    n = len(rows)
+    # 检索/引用指标只统计 answer/attribute_conflict 类（refuse 类无证据、不计入分母）
+    graded = [x for x in rows if x.get("behavior") != "refuse"]
+    refused_rows = [x for x in rows if x.get("behavior") == "refuse"]
+    n = len(graded)
     summary = {
         "base_url": args.base_url,
         "top_k": args.top_k,
         "hybrid": hybrid if hybrid is not None else "default(true)",
         "rerank": rerank if rerank is not None else "default(config)",
-        "queries": n,
-        f"page_recall@{args.top_k}": sum(x["retrieval"]["page_recall"] for x in rows) / n,
-        "page_mrr": sum(x["retrieval"]["page_mrr"] for x in rows) / n,
-        f"chunk_recall@{args.top_k}": sum(x["retrieval"]["chunk_recall"] for x in rows) / n,
+        "queries": len(rows),
+        "graded_queries": n,
+        "refusal_queries": len(refused_rows),
+        f"page_recall@{args.top_k}": sum(x["retrieval"]["page_recall"] for x in graded) / n if n else None,
+        "page_mrr": sum(x["retrieval"]["page_mrr"] for x in graded) / n if n else None,
+        f"chunk_recall@{args.top_k}": sum(x["retrieval"]["chunk_recall"] for x in graded) / n if n else None,
     }
     if not args.no_ask:
-        summary["citation_page_recall"] = sum(x["answer"]["citation_page_recall"] for x in rows) / n
+        summary["citation_page_recall"] = (
+            sum(x["answer"]["citation_page_recall"] for x in graded) / n if n else None)
+        if refused_rows:
+            summary["refusal_accuracy"] = (
+                sum(1 for x in refused_rows if x["answer"].get("refused")) / len(refused_rows))
 
     payload = {"summary": summary, "results": rows}
     out_path = RESULTS_DIR / out_name

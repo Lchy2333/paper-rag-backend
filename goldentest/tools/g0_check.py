@@ -200,16 +200,18 @@ def check_queries(queries, facts, rep):
             if e.get("quote") and nz(e["quote"]) != nz(f["quote"]):
                 rep.err(where, f"{fid} quote 与 facts.json 不一致")
 
-        if r in {"R1", "R2"} and len(ess) != 1:
-            rep.err(where, f"{r} 应只有 1 条 essential，实际 {len(ess)}")
-        if r in {"R3", "R4"} and len(ess) < 2:
-            rep.err(where, f"{r} 应至少有 2 条 essential，实际 {len(ess)}")
-        if r == "R4":
-            if len({e.get("doc") for e in ess}) < 2:
-                rep.err(where, "R4 的 essential 证据必须跨文档")
-        if r == "R3":
-            if len({e.get("doc") for e in ess}) != 1:
-                rep.err(where, "R3 的 essential 证据必须同一文档")
+        # refuse 类为"语料外负样本"，不要求 evidence；其余类按 R 档校验证据数
+        if q.get("expected_behavior") != "refuse":
+            if r in {"R1", "R2"} and len(ess) != 1:
+                rep.err(where, f"{r} 应只有 1 条 essential，实际 {len(ess)}")
+            if r in {"R3", "R4"} and len(ess) < 2:
+                rep.err(where, f"{r} 应至少有 2 条 essential，实际 {len(ess)}")
+            if r == "R4":
+                if len({e.get("doc") for e in ess}) < 2:
+                    rep.err(where, "R4 的 essential 证据必须跨文档")
+            if r == "R3":
+                if len({e.get("doc") for e in ess}) != 1:
+                    rep.err(where, "R3 的 essential 证据必须同一文档")
 
         must = q.get("must_cite", [])
         ev_ids = {e.get("fact_id") for e in ev}

@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-10-24",
+  "updated_at": "2026-10-25",
   "queries": [
     {
       "id": "Q-R1-A1-01",
@@ -304,6 +304,4375 @@
         "未代入跨度或用反分母算 wrong"
       ],
       "notes": "问题用“行车”“下垂量”替代原文“吊车”“挠度”，且原文没有 9 m 这个数，定为 R2；答案必须把表 3.4.3 的 l0/500、l0/600 代入 9000 mm 再换算，定为 A3。表格文本层存在 OCR 错字（莹弯、!0、lo），但 G0 页级已通过。"
+    },
+    {
+      "id": "Q-R1-A1-02",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "design_recommendation"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "这篇综述对 FRP 加固中粘结长度的设计建议是什么？为什么这样建议？",
+      "evidence": [
+        {
+          "fact_id": "F03",
+          "role": "essential",
+          "doc": "R01",
+          "page": 10,
+          "section": "4 Conclusions",
+          "quote": "it is recommended that the bonded length of the FRP be as long as possible, along with the use of adhesives with high ultimate elongation, to promote the use of FRP strength and activate other failure mechanisms such as crushing or rupture."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "建议 FRP 的粘结长度尽可能长，并使用高极限延伸率的胶粘剂，以充分利用 FRP 强度并激活混凝土压碎或 FRP 断裂等其他破坏机制。",
+        "keypoints": [
+          "FRP 粘结长度应尽可能长",
+          "应使用高极限延伸率的胶粘剂",
+          "目的是促进 FRP 强度发挥、激活混凝土压碎或 FRP 断裂等其他破坏机制"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F03"
+      ],
+      "forbidden_claims": [
+        "建议缩短粘结长度",
+        "建议使用低延伸率刚性胶粘剂"
+      ],
+      "judge_rubric": [
+        "三点建议都答对算 correct",
+        "只答出粘结长度或胶粘剂之一算 partial",
+        "方向相反算 wrong"
+      ],
+      "notes": "结论段单证据直接抽取，词面重合高，R1/A1。"
+    },
+    {
+      "id": "Q-R1-A1-03",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experimental_finding"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "圆钢管约束钢筋混凝土短柱在轴压下的破坏特征是什么？",
+      "evidence": [
+        {
+          "fact_id": "F85",
+          "role": "essential",
+          "doc": "R08",
+          "page": 3,
+          "section": "2.1 破坏模式",
+          "quote": "对于短\n柱( L/D = 3) ，构件发生典型的剪切破坏，剪切角在\n60°左右。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "破坏形式": "典型剪切破坏",
+          "剪切角": "60°左右"
+        },
+        "keypoints": [
+          "短柱发生典型的剪切破坏",
+          "剪切角在 60°左右"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F85"
+      ],
+      "forbidden_claims": [
+        "短柱发生压溃破坏",
+        "剪切角为 45°以下"
+      ],
+      "judge_rubric": [
+        "破坏形式与剪切角都答对算 correct",
+        "只答对一项算 partial",
+        "破坏形式答错算 wrong"
+      ],
+      "notes": "试验结论段单证据抽取，R1/A1。"
+    },
+    {
+      "id": "Q-R1-A1-04",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "construction_guidance"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "为获得 FRP 与混凝土的最佳粘结，混凝土表面处理应如何做？",
+      "evidence": [
+        {
+          "fact_id": "F09",
+          "role": "essential",
+          "doc": "R01",
+          "page": 3,
+          "section": "2 Previous Research on the Interface Bond",
+          "quote": "The best bond is achieved by mechanically abrading or sandblasting the concrete surface and then applying an appropriate primer."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "表面处理": "机械打磨或喷砂",
+          "后续工序": "涂合适的底涂"
+        },
+        "keypoints": [
+          "机械打磨或喷砂处理混凝土表面",
+          "随后涂合适的底涂"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F09"
+      ],
+      "forbidden_claims": [
+        "不做表面处理直接贴 FRP",
+        "只用打磨不用底涂"
+      ],
+      "judge_rubric": [
+        "两道工序都答对算 correct",
+        "只答对一道算 partial",
+        "均未答出算 wrong"
+      ],
+      "notes": "前文综述单证据抽取，R1/A1。"
+    },
+    {
+      "id": "Q-R1-A2-01",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "table",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文对土木工程领域高频关键词的统计中，排在首位的关键词是什么？它的频数是多少？",
+      "evidence": [
+        {
+          "fact_id": "F52",
+          "role": "essential",
+          "doc": "R09",
+          "page": 7,
+          "section": "Table 1. High-frequency keywords statistics",
+          "quote": "表1. 高频关键词统计 \n序号 \n关键词 \n频数 \n序号 \n关键词 \n频数 \n1 \n人工智能 \n674 \n16 \n信息技术 \n33 \n2 \n物联网 \n117 \n17 \n智慧建筑 \n32 \n3 \nBIM \n97 \n18 \n工程造价 \n30"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "关键词": "人工智能",
+          "频数": 674
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 1
+        },
+        "keypoints": [
+          "首位关键词是人工智能",
+          "频数为 674"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F52"
+      ],
+      "forbidden_claims": [
+        "首位关键词是物联网",
+        "频数记为 117 或其他值"
+      ],
+      "judge_rubric": [
+        "关键词与频数都答对算 correct",
+        "关键词对但频数错算 partial",
+        "关键词错算 wrong"
+      ],
+      "notes": "表1单行取数，词面重合高，R1/A2（数值抽取）。"
+    },
+    {
+      "id": "Q-R1-A3-01",
+      "retrieval_level": "R1",
+      "answer_level": "A3",
+      "tags": [
+        "formula"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "按该文的结论，FRP 加固设计中的极限有效 FRP 应变应如何取值？",
+      "evidence": [
+        {
+          "fact_id": "F10",
+          "role": "essential",
+          "doc": "R01",
+          "page": 10,
+          "section": "4 Conclusions",
+          "quote": "The limiting effective FRP strain value is given by:"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "极限有效 FRP 应变按式(9)计算：εfd = 0.083·sqrt(f'c/(n·Ef·tf))，且不应超过 0.9 倍的极限断裂应变。",
+        "keypoints": [
+          "按式(9)计算：0.083×sqrt(f'c/(n·Ef·tf))",
+          "取值不应超过 0.9 倍的极限断裂应变"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F10"
+      ],
+      "forbidden_claims": [
+        "直接取极限断裂应变而不折减"
+      ],
+      "judge_rubric": [
+        "公式与上限约束都答对算 correct",
+        "只答出公式或只答出上限算 partial",
+        "公式错误算 wrong"
+      ],
+      "notes": "公式类证据，quote 为引导句、公式在 latex 字段，答案须还原公式，R1/A3。"
+    },
+    {
+      "id": "Q-R2-A1-02",
+      "retrieval_level": "R2",
+      "answer_level": "A1",
+      "tags": [
+        "table",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该试验的高强混凝土（HSC）配合比中，每立方码的波特兰水泥（Type I and II）用量是多少磅？",
+      "evidence": [
+        {
+          "fact_id": "F23",
+          "role": "essential",
+          "doc": "R03",
+          "page": 4,
+          "section": "Material properties",
+          "quote": "Table 2—Mixture proportions for 1 yd3 of high-strength concrete (HSC)\nComponent\nWeight, lb\nCement Type I and II, portland\n801"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "numeric",
+        "value": 801,
+        "unit": "lb",
+        "tolerance": {
+          "mode": "absolute",
+          "value": 1
+        },
+        "keypoints": [
+          "水泥（Type I and II）用量为 801 lb"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F23"
+      ],
+      "forbidden_claims": [
+        "水泥用量为 117 lb 或其他值"
+      ],
+      "judge_rubric": [
+        "数值正确算 correct",
+        "数值错误或漏单位算 wrong"
+      ],
+      "notes": "英文表格取单值，中文提问跨语言匹配，R2/A1。"
+    },
+    {
+      "id": "Q-R2-A2-01",
+      "retrieval_level": "R2",
+      "answer_level": "A2",
+      "tags": [
+        "table",
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "壁厚 3.1 mm 的钢套筒试件，按套筒屈服假定的极限约束压力与实测极限约束压力各是多少 MPa？",
+      "evidence": [
+        {
+          "fact_id": "F64",
+          "role": "essential",
+          "doc": "R03",
+          "page": 4,
+          "section": "Experimental Study — Table 1",
+          "quote": "Table 1—Theoretical confinement of specimens\nNumerical \nsequence\nSleeve \nwall thick-\nness, mm\nAssumed ultimate \nconfining\npressure, MPa\nExperimental ulti-\nmate confining \npressure, MPa\nTheoretical peak \nstrength fcct, MPa\nExperimental \npeak strength \nfcce, MPa\n1\n0.0\n0.0\n0.0\n71.0\n71.0\n100.0\n2\n0.4\n3.4\n2.8\n94.5\n96.0\n101.0\n3\n0.8\n6.9\n5.9\n118.0\n118.0\n99.9\n4\n1.2\n10.3\n7.4\n141.0\n134.5\n95.4\n5\n1.6\n13.8\n10.9\n165.0\n148.0\n90.0\n6\n2.0\n17.2\n13.6\n189.7\n167.4\n88.3\n7\n2.3\n20.7\n15.2\n211.0\n181.0\n85.9\n8\n2.7\n24.1\n16.3\n235.0\n197.6\n84.1\n9\n3.1\n27.6\n18.7\n258.0\n222.0\n86.1\nfcce\nfcct\n------\n100%\n×"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "假定值_MPa": 27.6,
+          "实测值_MPa": 18.7
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 0.5
+        },
+        "keypoints": [
+          "按屈服假定的极限约束压力为 27.6 MPa",
+          "实测极限约束压力为 18.7 MPa",
+          "实测值明显低于假定值"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F64"
+      ],
+      "forbidden_claims": [
+        "把实测值写成 27.6、假定值写成 18.7"
+      ],
+      "judge_rubric": [
+        "两个数值都答对算 correct",
+        "只答对一个算 partial",
+        "数值互换算 wrong"
+      ],
+      "notes": "Table 1 单行两值对比取数，R2/A2。"
+    },
+    {
+      "id": "Q-R2-A3-02",
+      "retrieval_level": "R2",
+      "answer_level": "A3",
+      "tags": [
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "在 0.24 轴压比下，Mode B 的 STCRC4 试件相比 Mode A 的 STCRC2 试件，位移延性系数和极限转角分别提高了多少？",
+      "evidence": [
+        {
+          "fact_id": "F61",
+          "role": "essential",
+          "doc": "R10",
+          "page": 124,
+          "section": "5.4.1 骨架曲线",
+          "quote": "0.24 轴压比下Mode B （STCRC4）试件的位移延\n性系数（图5.12（c））和极限转角（图5.12（d））分别比Mode A（STCRC2）试件\n提高13.5%和41.4%。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "位移延性系数提高": "13.5%",
+          "极限转角提高": "41.4%"
+        },
+        "keypoints": [
+          "位移延性系数提高 13.5%",
+          "极限转角提高 41.4%"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F61"
+      ],
+      "forbidden_claims": [
+        "把两项百分比互换",
+        "写成绝对值而不是百分比"
+      ],
+      "judge_rubric": [
+        "两项百分比都答对算 correct",
+        "只答对一项算 partial",
+        "两项互换算 wrong"
+      ],
+      "notes": "试验对比段落抽取两组百分比，R2/A3。"
+    },
+    {
+      "id": "Q-R2-A1-03",
+      "retrieval_level": "R2",
+      "answer_level": "A1",
+      "tags": [
+        "table",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "表5.1中 STCRC1 和 STCRC2 两个试件的几何参数相同，它们的轴压比和对应轴压力各是多少？",
+      "evidence": [
+        {
+          "fact_id": "F59",
+          "role": "essential",
+          "doc": "R10",
+          "page": 114,
+          "section": "5.2.2 试件设计制作",
+          "quote": "试件 \nL \n(mm)\nh \n(mm) \nh1 \n(mm) \nD \n(mm)\ntc  \n(mm) \nls \n(mm)\nhs \n(mm) \nts \n(mm) \nhj \n(mm) \ntj \n(mm) \nLRC \nTR \nDisconnection \nmode \nn \nN \n(kN)\nSTCRC1 1800 800 600 200 \n2 \n400 150 \n4 \n200 \n4 4C10 Φ8@100\nMode A \n0.12 282 \nSTCRC2 1800 800 600 200 \n2 \n400 150 \n4 \n200 \n4 4C10 Φ8@100\nMode A \n0.24 565"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "STCRC1": {
+            "轴压比": 0.12,
+            "轴压力_kN": 282
+          },
+          "STCRC2": {
+            "轴压比": 0.24,
+            "轴压力_kN": 565
+          }
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 1
+        },
+        "keypoints": [
+          "STCRC1 轴压比 0.12、轴压力 282 kN",
+          "STCRC2 轴压比 0.24、轴压力 565 kN"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F59"
+      ],
+      "forbidden_claims": [
+        "把两试件的轴压比或轴压力互换"
+      ],
+      "judge_rubric": [
+        "两个试件的轴压比与轴压力都答对算 correct",
+        "只答对一个试件算 partial",
+        "数据互换算 wrong"
+      ],
+      "notes": "中文表格取两行数据，跨行对应，R2/A1。"
+    },
+    {
+      "id": "Q-R3-A2-02",
+      "retrieval_level": "R3",
+      "answer_level": "A2",
+      "tags": [
+        "multiple_evidence"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "系列II试验中，局部承压区直径的取值是多少？全部试件的破坏模式受哪个参数显著影响？",
+      "evidence": [
+        {
+          "fact_id": "F94",
+          "role": "essential",
+          "doc": "R11",
+          "page": 5,
+          "section": "Tests of Connection Zone",
+          "quote": "The local\ncompression zone had a constant diameter d ¼ 400 mm, while\nthe width and height of the ring beam outside the local compression\nwere b and h, respectively."
+        },
+        {
+          "fact_id": "F95",
+          "role": "essential",
+          "doc": "R11",
+          "page": 6,
+          "section": "Tests of Connection Zone",
+          "quote": "Fig. 18 shows a bar graph of the failure modes of all\n27 specimens, from which it can be seen that the failure modes\nare significantly affected by height factor β."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "承压区直径_mm": 400,
+          "影响参数": "高度系数 β"
+        },
+        "keypoints": [
+          "局部承压区直径恒定为 400 mm",
+          "全部 27 个试件的破坏模式受高度系数 β 显著影响"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F94",
+        "F95"
+      ],
+      "forbidden_claims": [
+        "承压区直径随试件变化",
+        "破坏模式不受 β 影响"
+      ],
+      "judge_rubric": [
+        "两处证据都答对算 correct",
+        "只答对一处算 partial",
+        "均未答出算 wrong"
+      ],
+      "notes": "同一文档两处证据（p5/p6）合成回答，跨段落，R3/A2。"
+    },
+    {
+      "id": "Q-R3-A3-01",
+      "retrieval_level": "R3",
+      "answer_level": "A3",
+      "tags": [
+        "formula",
+        "multiple_evidence"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "对矩形、T形和I形截面的一般受弯构件，规范对斜截面受剪承载力（仅配置箍筋时）和最大挠度分别有什么要求？",
+      "evidence": [
+        {
+          "fact_id": "F49",
+          "role": "essential",
+          "doc": "R05",
+          "page": 27,
+          "section": "7.5.4 仅配置箍筋时的斜截面受剪承载力",
+          "quote": "7.5.4 矩形、T形和I形截面的一般受弯构件，当\n仅配置箍筋时，其斜截面的受剪承载力应符合下列规\n定："
+        },
+        {
+          "fact_id": "F46",
+          "role": "essential",
+          "doc": "R05",
+          "page": 7,
+          "section": "3.3 正常使用极限状态验算规定",
+          "quote": "3.3.2 受弯构件的最大挠度应按荷载效应的标准组\n合并考虑荷载长期作用影响进行计算，其计算值不应\n超过表3.3.2规定的挠度限值。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "受剪承载力应满足 V ≤ Vcs + Vp，其中 Vcs = 0.7·ft·b·h0 + 1.25·fyv·(Asv/s)·h0；最大挠度应按荷载效应标准组合并考虑荷载长期作用影响计算，其计算值不应超过表3.3.2规定的挠度限值。",
+        "keypoints": [
+          "受剪承载力应满足 V ≤ Vcs + Vp，Vcs = 0.7·ft·b·h0 + 1.25·fyv·(Asv/s)·h0",
+          "最大挠度应按荷载效应标准组合并考虑荷载长期作用影响计算",
+          "挠度计算值不应超过表3.3.2规定的挠度限值"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F49",
+        "F46"
+      ],
+      "forbidden_claims": [
+        "Vcs 公式系数写错",
+        "挠度不需按标准组合计算"
+      ],
+      "judge_rubric": [
+        "受剪公式与挠度要求都答对算 correct",
+        "只答对其中一项算 partial",
+        "两项均错算 wrong"
+      ],
+      "notes": "规范两处验算条款（7.5.4 受剪、3.3.2 挠度）合成回答，公式在 latex 字段，R3/A3。"
+    },
+    {
+      "id": "Q-R3-A1-01",
+      "retrieval_level": "R3",
+      "answer_level": "A1",
+      "tags": [
+        "multiple_evidence"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文介绍了人工智能技术在土木工程中的哪些具体应用？",
+      "evidence": [
+        {
+          "fact_id": "F90",
+          "role": "essential",
+          "doc": "R09",
+          "page": 5,
+          "section": "3. 人工智能在土木工程中的应用研究趋势",
+          "quote": "例如利用人工智能技术可以实时\n检测混凝土浇筑过程中的温度变化和应力情况。"
+        },
+        {
+          "fact_id": "F53",
+          "role": "essential",
+          "doc": "R09",
+          "page": 4,
+          "section": "2.3.1 视觉驱动的智能养维护",
+          "quote": "Kim 等学者[14]则聚焦于混凝土桥梁的裂缝识别问题，他们利用商用无人机搭载高分辨率视觉传感器，\n结合深度学习算法，开展了一系列研究。该研究成功实现了对桥梁结构表面裂缝的自动检测、裂缝宽度\n与长度的精确计算。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "施工监测": "实时检测混凝土浇筑过程中的温度变化和应力情况",
+          "结构检测": "无人机+深度学习自动检测桥梁裂缝并计算裂缝宽度与长度"
+        },
+        "keypoints": [
+          "利用 AI 实时检测混凝土浇筑过程中的温度变化和应力情况",
+          "Kim 等利用无人机与深度学习实现桥梁裂缝自动检测、裂缝宽度与长度精确计算"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F90",
+        "F53"
+      ],
+      "forbidden_claims": [
+        "只答出其中一种应用"
+      ],
+      "judge_rubric": [
+        "两种应用都答出算 correct",
+        "只答出一种算 partial",
+        "均未答出算 wrong"
+      ],
+      "notes": "同一文档两处证据（p4/p5）合成回答，R3/A1。"
+    },
+    {
+      "id": "Q-R4-A1-01",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "批评 CSCT 的文献和辩护 CSCT 的文献，各自对 CSCT 有效性的核心主张是什么？",
+      "evidence": [
+        {
+          "fact_id": "F37",
+          "role": "essential",
+          "doc": "R04",
+          "page": 9,
+          "section": "9 Conclusions",
+          "quote": "The CSCT is shown to rest on six implied hypotheses.\nThey are all physically unjustified."
+        },
+        {
+          "fact_id": "F42",
+          "role": "essential",
+          "doc": "R06",
+          "page": 2,
+          "section": "The approach of the CSCT",
+          "quote": "The results show that not only the failure load is \nsuitably reproduced, but also the amount of shear carried by each shear‐transfer \naction (see Fig. 2,3)."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "CSCT 依赖六个隐含假设且这些假设在物理上均不成立",
+          "辩护方": "CSCT 的验证结果能合理再现破坏荷载及各剪力传递作用承担的剪力"
+        },
+        "keypoints": [
+          "批评方（R04）认为 CSCT 依赖六个隐含假设、均不成立",
+          "辩护方（R06）称验证结果能合理再现破坏荷载及各剪力传递作用承担的剪力"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F37",
+        "F42"
+      ],
+      "forbidden_claims": [
+        "只给出单方立场",
+        "把两文立场混为一谈"
+      ],
+      "judge_rubric": [
+        "两方立场都列出算 correct",
+        "只列一方算 partial",
+        "立场混淆算 wrong"
+      ],
+      "notes": "跨 R04/R06 两文档抽取对立主张，expected_behavior 冲突归因，R4/A1。"
+    },
+    {
+      "id": "Q-R4-A2-01",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "两篇文献对 CSCT 尺寸效应的量化结论分别是什么？",
+      "evidence": [
+        {
+          "fact_id": "F40",
+          "role": "essential",
+          "doc": "R04",
+          "page": 12,
+          "section": "Appendix 2: Examples Verifying Realistic Performance of Microplane Model M7",
+          "quote": "For example, in Figure 4c, the difference reaches\nto 29% for small sizes and doubles for d ! ∞."
+        },
+        {
+          "fact_id": "F44",
+          "role": "essential",
+          "doc": "R06",
+          "page": 4,
+          "section": "General considerations on the consistency of the CSCT",
+          "quote": "In agreement to fracture mechanics, the size effect \ncalculated by this approach yields to milder slopes of the size effect for \nasymptotically large sizes. Typical values are between ‐1/2.5 and ‐1/3 (punching, \ncontinuous beams [10])."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "与 SEL 对比在 Walraven 试验中小尺寸强度差达 29%，且 d→∞ 时翻倍",
+          "辩护方": "渐近大尺寸下尺寸效应斜率更缓，典型值 -1/2.5 至 -1/3（冲切与连续梁）"
+        },
+        "keypoints": [
+          "R04：CSCT 相对 SEL 在小尺寸下强度差达 29%，d→∞ 时翻倍",
+          "R06：CSCT 在渐近大尺寸下尺寸效应斜率更缓，典型值介于 -1/2.5 与 -1/3 之间"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F40",
+        "F44"
+      ],
+      "forbidden_claims": [
+        "把两文的数值结论张冠李戴"
+      ],
+      "judge_rubric": [
+        "两文量化结论都答对算 correct",
+        "只答对一方算 partial",
+        "数值张冠李戴算 wrong"
+      ],
+      "notes": "跨文档数值立场对比，R4/A2。"
+    },
+    {
+      "id": "Q-R4-A3-01",
+      "retrieval_level": "R4",
+      "answer_level": "A3",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "关于 CSCT 与 SEL（或 Bažant 方法）的关系，辩护方和批评方分别得出了什么结论？",
+      "evidence": [
+        {
+          "fact_id": "F43",
+          "role": "essential",
+          "doc": "R06",
+          "page": 3,
+          "section": "General considerations on the consistency of the CSCT",
+          "quote": "The results proved the CSCT to be consistent to Bažant’s approach, without the need of any \nchange or additional consideration."
+        },
+        {
+          "fact_id": "F39",
+          "role": "essential",
+          "doc": "R04",
+          "page": 4,
+          "section": "3 Beam Shear Strength According to CSCT",
+          "quote": "Figure 1c further shows that if the curves are matched at\nd0 = d, then the difference, Δvu, between the two prediction\ncurves becomes 14.4% at both the small-size and large-size\nasymptotes."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "辩护方": "2015 年对完整 SEL 的研究表明 CSCT 与 Bažant 方法一致，无需任何改动",
+          "批评方": "当曲线在 d0=d 处匹配时，CSCT 与 SEL 的强度差在小尺寸和大尺寸渐近段均达 14.4%"
+        },
+        "keypoints": [
+          "R06：完整 SEL 研究证明 CSCT 与 Bažant 方法一致、无需改动",
+          "R04：CSCT 与 SEL 强度差在小尺寸和大尺寸渐近段均达 14.4%"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F43",
+        "F39"
+      ],
+      "forbidden_claims": [
+        "只取一方结论下判断"
+      ],
+      "judge_rubric": [
+        "两方结论都列出算 correct",
+        "只列一方算 partial",
+        "立场混淆算 wrong"
+      ],
+      "notes": "跨文档关于同一关系（CSCT↔SEL）的对立结论，需并列呈现，R4/A3。"
+    },
+    {
+      "id": "Q-R4-A1-02",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "两篇文献对 CSCT 理论基础（隐含假设 vs 通用可靠性）的态度分别是什么？",
+      "evidence": [
+        {
+          "fact_id": "F36",
+          "role": "essential",
+          "doc": "R04",
+          "page": 2,
+          "section": "2 Hypotheses Underlying the CSCT Theory",
+          "quote": "Hypothesis 2 To express the size effect, it is assumed that\n(Equation (1) in Ref.19):"
+        },
+        {
+          "fact_id": "F41",
+          "role": "essential",
+          "doc": "R06",
+          "page": 1,
+          "section": "Introduction",
+          "quote": "The CSCT has shown to be general, reliable and simple enough to \nbe introduced in codes of practice."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "CSCT 的尺寸效应建立在假设2之上，用与裂缝宽度 w 成反比的线性分母表达",
+          "辩护方": "CSCT 已被证明足够通用、可靠且简单，可纳入实践规范"
+        },
+        "keypoints": [
+          "R04 指出 CSCT 尺寸效应建立在假设2（w 反比线性分母、α1=1/3）之上",
+          "R06 主张 CSCT 已证明足够通用、可靠且简单，可纳入实践规范"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F36",
+        "F41"
+      ],
+      "forbidden_claims": [
+        "只取一方观点"
+      ],
+      "judge_rubric": [
+        "两文立场都列出算 correct",
+        "只列一方算 partial",
+        "立场混淆算 wrong"
+      ],
+      "notes": "R04 对 CSCT 假设基础的质疑 vs R06 对 CSCT 实用性的背书，R4/A1。"
+    },
+    {
+      "id": "Q-R4-A1-03",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "批评 CSCT 的文献认为其破坏机制由什么控制，辩护方认为其破坏准则涵盖哪些贡献？",
+      "evidence": [
+        {
+          "fact_id": "F68",
+          "role": "essential",
+          "doc": "R04",
+          "page": 2,
+          "section": "2 Hypotheses Underlying the CSCT Theory",
+          "quote": "Hypothesis 1 The shear force, VR, carried by concrete at\nmaximum load is (in CSCT as well as MCFT)\nassumed to be controlled by a characteristic\ncrack width w of the dominant crack leading to\nfailure."
+        },
+        {
+          "fact_id": "F73",
+          "role": "essential",
+          "doc": "R06",
+          "page": 5,
+          "section": "Detailed reply to the criticism raised by Dönmez and Bažant",
+          "quote": "The failure criterion accounts for various contributions [2,7]: residual tensile \nstrength, aggregate interlock, dowelling action and inclination of compression chord."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "最大荷载时混凝土承担的剪力由主裂缝的特征裂缝宽度 w 控制（隐含假设1）",
+          "辩护方": "破坏准则涵盖残余抗拉强度、骨料咬合、销栓作用和受压弦杆倾斜四项贡献"
+        },
+        "keypoints": [
+          "R04 指出 CSCT 隐含假设1：最大荷载时混凝土剪力由主裂缝宽度 w 控制",
+          "R06 称 CSCT 破坏准则涵盖残余抗拉强度、骨料咬合、销栓作用和受压弦杆倾斜"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F68",
+        "F73"
+      ],
+      "forbidden_claims": [
+        "把两文的破坏机制描述混淆"
+      ],
+      "judge_rubric": [
+        "两文观点都答对算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "两文对 CSCT 破坏机制的解释分歧，R4/A1。"
+    },
+    {
+      "id": "Q-R4-A2-02",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "两篇文献对 CSCT 尺寸效应因子的处理有何不同？",
+      "evidence": [
+        {
+          "fact_id": "F69",
+          "role": "essential",
+          "doc": "R04",
+          "page": 3,
+          "section": "3 Beam Shear Strength According to CSCT Ensuing from the Hypotheses, and Comparison with ACI-446",
+          "quote": "This equation is in a form readily comparable to the size\neffect factor λ proposed by ACI Committee 445, Fracture\nMechanics."
+        },
+        {
+          "fact_id": "F74",
+          "role": "essential",
+          "doc": "R06",
+          "page": 4,
+          "section": "General considerations on the consistency of the CSCT",
+          "quote": "It is interesting to note that even Bažant clearly observed \nsuch a milder slope in punching when analysing test results [13], although he has not \nconsidered it for design and has accepted for these cases the (conservative) linear‐\nelastic fracture mechanics slope of ‐1/2."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "ACI 445 给出尺寸效应因子 λ=1/√(1+d/d0)，CSCT 的强度表达式与之不同",
+          "辩护方": "Bažant 在分析冲切试验时也观察到更缓斜率，但他仍接受偏保守的线弹性斜率-1/2"
+        },
+        "keypoints": [
+          "R04 给出 ACI 445 尺寸效应因子公式 vu=v0λ（λ=1/√(1+d/d0)），并指出 CSCT 的强度表达式与其不同",
+          "R06 称 Bažant 分析冲切试验时也观察到更缓斜率，但未用于设计而接受线弹性斜率-1/2"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F69",
+        "F74"
+      ],
+      "forbidden_claims": [
+        "把两文的公式与结论张冠李戴"
+      ],
+      "judge_rubric": [
+        "两文观点都答对算 correct",
+        "只答一方算 partial",
+        "张冠李戴算 wrong"
+      ],
+      "notes": "尺寸效应因子公式 vs 斜率观察的论战，R4/A2。"
+    },
+    {
+      "id": "Q-R4-A1-04",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "关于 CSCT 被规范采纳的情况，两篇文献的说法有何差异？",
+      "evidence": [
+        {
+          "fact_id": "F70",
+          "role": "essential",
+          "doc": "R04",
+          "page": 2,
+          "section": "1 Nature and Evolution of Size Effect Formulae in Design Codes",
+          "quote": "The Swiss\nCode22 has already adopted the CSCT for both the beam\nshear and punching (two-way) shear, while Model Code\n2010 has done so for the latter."
+        },
+        {
+          "fact_id": "F77",
+          "role": "essential",
+          "doc": "R06",
+          "page": 1,
+          "section": "Introduction",
+          "quote": "This theory has been adopted by different codes (fib MC2010, \nSwiss Code, current draft of Eurocode 2) after in‐depth analysis of different scientific committees \nand extensive verification."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "瑞士规范已将 CSCT 用于梁剪切与冲切，而 Model Code 2010 仅将 CSCT 用于冲切",
+          "辩护方": "CSCT 已被 fib MC2010、瑞士规范和现行欧洲规范2草案等规范采纳"
+        },
+        "keypoints": [
+          "R04 指出瑞士规范将 CSCT 用于梁剪+冲切，MC2010 仅用于冲切",
+          "R06 称 CSCT 已被 MC2010、瑞士规范、EC2 草案采纳"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F70",
+        "F77"
+      ],
+      "forbidden_claims": [
+        "把两文对规范采纳的说法混为一谈"
+      ],
+      "judge_rubric": [
+        "两文说法都答对算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "两文对 CSCT 规范地位的叙述差异，R4/A1。"
+    },
+    {
+      "id": "Q-R4-A2-03",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "两篇文献对荷载在构件中的传递机制有何量化结论？",
+      "evidence": [
+        {
+          "fact_id": "F71",
+          "role": "essential",
+          "doc": "R04",
+          "page": 5,
+          "section": "4.2 Cross-Crack Stress Transmission",
+          "quote": "They represent for the\nbeams of small and large sizes, respectively, only 18 and\n2.9% of the total shear force Vc."
+        },
+        {
+          "fact_id": "F76",
+          "role": "essential",
+          "doc": "R06",
+          "page": 6,
+          "section": "Concluding remarks",
+          "quote": "For these cases, as \ndemonstrated in [10], the influence of size on shear strength is stronger than for geometrically \nscaled specimens (with constant flexural reinforcement ratio) as not only the size, but also the \namount of flexural reinforcement, are varied for increasing sizes (decreasing flexural reinforcement \nratio with increasing sizes)."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "跨主斜裂缝传递的竖向力在小尺寸和大尺寸梁中分别仅占总剪力 Vc 的 18% 和 2.9%",
+          "辩护方": "当抗弯钢筋无超配筋时，尺寸对受剪强度的影响强于几何相似试件（配筋率随尺寸增大而减小）"
+        },
+        "keypoints": [
+          "R04 的有限元结果表明跨主斜裂缝传递的竖向力仅占 Vc 的 18%（小）和 2.9%（大）",
+          "R06 称无超配筋时尺寸影响更强，因配筋率随尺寸增大而减小"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F71",
+        "F76"
+      ],
+      "forbidden_claims": [
+        "把两文机制结论混淆"
+      ],
+      "judge_rubric": [
+        "两文观点都答对算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "荷载传递机制 vs 配筋率影响的论战，R4/A2。"
+    },
+    {
+      "id": "Q-R4-A2-04",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "conflict"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "两篇文献对大尺寸渐近斜率与裂缝表征的分歧是什么？",
+      "evidence": [
+        {
+          "fact_id": "F72",
+          "role": "essential",
+          "doc": "R04",
+          "page": 9,
+          "section": "8 Comments on the Analogous Problem of Size Effect on Punching Shear Strength of Slabs",
+          "quote": "For punching they thus obtain a\nsize effect that ends with the asymptotic slope of −0.4 (instead\nof −0.5), which is not correct but at least does not violate the\nsecond law of thermodynamics."
+        },
+        {
+          "fact_id": "F75",
+          "role": "essential",
+          "doc": "R06",
+          "page": 5,
+          "section": "Detailed reply to the criticism raised by Dönmez and Bažant",
+          "quote": "Yet, as the centre of \nrotations is located approximately at the tip of the critical shear crack, the crack relative \ndisplacements can be characterized by one parameter (refer to the linear profile of the \nhorizontal component of crack widths shown in Fig. 4b), as for instance the crack width at \nthe level of the reinforcement [7] or others [9]."
+        }
+      ],
+      "expected_behavior": "attribute_conflict",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "批评方": "Muttoni 将 CSCT 适配冲切时得到的大尺寸渐近斜率 -0.4 并不正确，但不违反热力学第二定律",
+          "辩护方": "转动中心近似位于临界剪裂缝尖端，裂缝相对位移可用单一参数（如纵筋高度处的裂缝宽度）表征"
+        },
+        "keypoints": [
+          "R04 认为 Muttoni 的冲切大尺寸渐近斜率 -0.4 不正确",
+          "R06 称转动中心近似位于裂缝尖端，可用单一参数表征裂缝相对位移"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F72",
+        "F75"
+      ],
+      "forbidden_claims": [
+        "把两文关于斜率/表征的结论混淆"
+      ],
+      "judge_rubric": [
+        "两文观点都答对算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "斜率与表征参数的论战，R4/A2。"
+    },
+    {
+      "id": "Q-R1-A1-05",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "mechanism"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该综述认为，FRP 加固中极限粘结强度与什么成正比？为什么？",
+      "evidence": [
+        {
+          "fact_id": "F01",
+          "role": "essential",
+          "doc": "R01",
+          "page": 3,
+          "section": "2 Previous Research on the Interface Bond",
+          "quote": "Since the dominant failure mode is shearing of the concrete beneath the bond, the ultimate strength is proportional to concrete compressive strength (f 0 c)."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "极限粘结强度与混凝土抗压强度成正比，因为主导破坏模式是粘结面下方混凝土的剪切破坏。",
+        "keypoints": [
+          "极限粘结强度与混凝土抗压强度成正比",
+          "原因是主导破坏模式为粘结面下方混凝土被剪切破坏"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F01"
+      ],
+      "forbidden_claims": [
+        "与混凝土抗压强度成反比"
+      ],
+      "judge_rubric": [
+        "因果都答对算 correct",
+        "只答出比例关系算 partial",
+        "方向错算 wrong"
+      ],
+      "notes": "R1/A1：单证据机制抽取。"
+    },
+    {
+      "id": "Q-R1-A1-06",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "concept"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该综述中提到的粘结发展长度是什么意思？",
+      "evidence": [
+        {
+          "fact_id": "F02",
+          "role": "essential",
+          "doc": "R01",
+          "page": 3,
+          "section": "2 Previous Research on the Interface Bond",
+          "quote": "There is a bond development length beyond which the load at failure cannot be increased."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "存在一个粘结发展长度，超过该长度后，失效荷载不再增加。",
+        "keypoints": [
+          "存在粘结发展长度",
+          "超过该长度后失效荷载不再增加"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F02"
+      ],
+      "forbidden_claims": [
+        "粘结越长失效荷载越大"
+      ],
+      "judge_rubric": [
+        "概念与结论都答对算 correct",
+        "只答概念算 partial",
+        "方向错算 wrong"
+      ],
+      "notes": "R1/A1：概念定义抽取。"
+    },
+    {
+      "id": "Q-R1-A1-07",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "mechanism"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "胶层厚度对 FRP 粘结性能有什么影响？",
+      "evidence": [
+        {
+          "fact_id": "F04",
+          "role": "essential",
+          "doc": "R01",
+          "page": 4,
+          "section": "2 Previous Research on the Interface Bond",
+          "quote": "thinner adhesive layers lower the chances of a concrete-adhesive interface failure."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "较薄的胶层会降低混凝土-胶粘剂界面发生破坏的概率，即较薄胶层更有利。",
+        "keypoints": [
+          "较薄胶层降低混凝土-胶粘剂界面破坏概率",
+          "较薄胶层更有利"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F04"
+      ],
+      "forbidden_claims": [
+        "胶层越厚粘结越强"
+      ],
+      "judge_rubric": [
+        "两层含义都答对算 correct",
+        "只答一层算 partial",
+        "方向错算 wrong"
+      ],
+      "notes": "R1/A1：单证据结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-08",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "conclusion"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该综述对刚性粘结层持什么态度？",
+      "evidence": [
+        {
+          "fact_id": "F05",
+          "role": "essential",
+          "doc": "R01",
+          "page": 10,
+          "section": "4 Conclusions",
+          "quote": "The thinner adhesive layers lower the chances of a concrete-adhesive interface failure; thus, stiff bond layers are not ideal."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "较薄的胶层更有利，刚性（刚硬）粘结层并不理想。",
+        "keypoints": [
+          "刚性粘结层并不理想",
+          "较薄胶层更有利"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F05"
+      ],
+      "forbidden_claims": [
+        "刚性粘结层是理想选择"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "方向相反算 wrong"
+      ],
+      "notes": "R1/A1：结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-09",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "mechanism"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "使用延性更高的胶粘剂，对粘结强度和失效应变分别有什么影响？",
+      "evidence": [
+        {
+          "fact_id": "F06",
+          "role": "essential",
+          "doc": "R01",
+          "page": 3,
+          "section": "2 Previous Research on the Interface Bond",
+          "quote": "The use of more ductile adhesives leads to weaker bonds but larger failure strains."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "使用延性更高的胶粘剂会得到较弱的粘结，但会产生更大的失效应变。",
+        "keypoints": [
+          "延性更高的胶粘剂导致较弱的粘结",
+          "但失效应变更大"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F06"
+      ],
+      "forbidden_claims": [
+        "延性胶粘剂粘结更强"
+      ],
+      "judge_rubric": [
+        "两方面都答对算 correct",
+        "只答一方面算 partial",
+        "方向错算 wrong"
+      ],
+      "notes": "R1/A1：机制权衡抽取。"
+    },
+    {
+      "id": "Q-R1-A1-10",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该综述对现行规范中有效粘结长度公式的评价是什么？",
+      "evidence": [
+        {
+          "fact_id": "F07",
+          "role": "essential",
+          "doc": "R01",
+          "page": 8,
+          "section": "3 Bond-Related Analytical Models",
+          "quote": "However, the effective bond length equations adopted in current codes are very inconsistent."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "现行规范给出的有效粘结长度公式彼此很不一致。",
+        "keypoints": [
+          "现行规范的有效粘结长度公式很不一致"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F07"
+      ],
+      "forbidden_claims": [
+        "各规范公式高度一致"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：综述结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-11",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "关于有效粘结长度的解析模型，该综述得出了什么结论？",
+      "evidence": [
+        {
+          "fact_id": "F08",
+          "role": "essential",
+          "doc": "R01",
+          "page": 8,
+          "section": "3 Bond-Related Analytical Models",
+          "quote": "There remain no accepted analytical models to predict the effective bond length."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "目前没有被普遍接受的有效粘结长度解析模型。",
+        "keypoints": [
+          "没有被普遍接受的有效粘结长度解析模型"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F08"
+      ],
+      "forbidden_claims": [
+        "已有公认的解析模型"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：综述结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-12",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文建立的式(8)~式(11)挠曲线数学模型适用于哪些情形？",
+      "evidence": [
+        {
+          "fact_id": "F11",
+          "role": "essential",
+          "doc": "R02",
+          "page": 4,
+          "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+          "quote": "这样式(8)~式(11)共同构成了等截面悬臂梁在轴向压力和横向力联合作用下的挠曲线数学模型,需要指出:该模型即适用于梁的大变形弯曲情形又适合于梁的小变形弯曲情形。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "式(8)~式(11)构成的挠曲线数学模型既适用于梁的大变形弯曲情形，也适用于小变形弯曲情形。",
+        "keypoints": [
+          "既适用于大变形弯曲",
+          "也适用于小变形弯曲"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F11"
+      ],
+      "forbidden_claims": [
+        "仅适用于大变形"
+      ],
+      "judge_rubric": [
+        "两种情形都答对算 correct",
+        "只答一种算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：模型适用性抽取。"
+    },
+    {
+      "id": "Q-R1-A1-13",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "method"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "在大变形情形下确定梁的挠度，应该采用哪种方法？",
+      "evidence": [
+        {
+          "fact_id": "F12",
+          "role": "essential",
+          "doc": "R02",
+          "page": 5,
+          "section": "4. 算例",
+          "quote": "这说明：在梁的大变形情形下，不能直接应用方法1确定梁的挠度，而应该采用方法2确定梁的挠度，否则会得到错误的结果。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "大变形情形下不能直接使用方法1，应采用方法2确定梁的挠度，否则会得到错误结果。",
+        "keypoints": [
+          "大变形下不能直接用方法1",
+          "应采用方法2"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F12"
+      ],
+      "forbidden_claims": [
+        "大变形下可直接用方法1"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：方法选择结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-14",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "分析悬臂梁大变形弯曲问题时，需要考虑哪些位移分量？",
+      "evidence": [
+        {
+          "fact_id": "F13",
+          "role": "essential",
+          "doc": "R02",
+          "page": 2,
+          "section": "1.引言",
+          "quote": "在大变形弯曲下，由于梁变形的几何非线因素不可忽略，因此，在分析悬臂梁的大变形弯曲问题时，不仅需要考虑梁轴线上点的横向位移（挠度），而且还需要考虑梁轴线上点的轴向位移"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "不仅需要考虑梁轴线上点的横向位移（挠度），还需要考虑轴向位移。",
+        "keypoints": [
+          "需考虑横向位移（挠度）",
+          "还需考虑轴向位移"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F13"
+      ],
+      "forbidden_claims": [
+        "只需考虑挠度"
+      ],
+      "judge_rubric": [
+        "两个位移分量都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：力学概念抽取。"
+    },
+    {
+      "id": "Q-R1-A1-15",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "式(7)对梁的适用范围是什么？",
+      "evidence": [
+        {
+          "fact_id": "F14",
+          "role": "essential",
+          "doc": "R02",
+          "page": 4,
+          "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+          "quote": "这里需要指出：只要在梁的材料的线弹性范围内，式(7)对于梁的小变形弯曲和大变形弯曲都是适用的。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "只要在材料线弹性范围内，式(7)对梁的小变形弯曲和大变形弯曲都适用。",
+        "keypoints": [
+          "在材料线弹性范围内",
+          "对小变形和大变形弯曲均适用"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F14"
+      ],
+      "forbidden_claims": [
+        "仅适用于小变形"
+      ],
+      "judge_rubric": [
+        "两个条件都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：公式适用范围抽取。"
+    },
+    {
+      "id": "Q-R1-A1-16",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文建立的非线性挠曲线模型能否求得精确解析解？",
+      "evidence": [
+        {
+          "fact_id": "F15",
+          "role": "essential",
+          "doc": "R02",
+          "page": 4,
+          "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+          "quote": "由于此模型为非线性模型，所以一般很难求得其精确的解析解。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "该非线性挠曲线模型一般很难求得精确解析解。",
+        "keypoints": [
+          "一般很难求得精确解析解"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F15"
+      ],
+      "forbidden_claims": [
+        "可以求得精确解析解"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-17",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "method"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文采用什么方法求方程(8)满足边界条件(9)的数值解？",
+      "evidence": [
+        {
+          "fact_id": "F16",
+          "role": "essential",
+          "doc": "R02",
+          "page": 4,
+          "section": "3. 悬臂梁在轴向压力和横向力联合作用下的大变形弯曲",
+          "quote": "首先应用Matlabbvp4c[8]（Matlab中求解非线性常微分方程两点边值问题的算法）求出方程(8)满足边界条件(9)的数值解"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "采用 Matlab 的 bvp4c 函数求方程(8)满足边界条件(9)的数值解。",
+        "keypoints": [
+          "采用 Matlab bvp4c",
+          "求解方程(8)满足边界条件(9)"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F16"
+      ],
+      "forbidden_claims": [
+        "采用解析方法求解"
+      ],
+      "judge_rubric": [
+        "求解工具与方法答对算 correct",
+        "工具答错算 wrong"
+      ],
+      "notes": "R1/A1：数值方法抽取。"
+    },
+    {
+      "id": "Q-R1-A1-18",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "小变形情形下，方法1和方法2得到的挠曲线关系如何？",
+      "evidence": [
+        {
+          "fact_id": "F17",
+          "role": "essential",
+          "doc": "R02",
+          "page": 5,
+          "section": "4. 算例",
+          "quote": "将图4中的实线和虚线相比较，可以看出：在梁的小变形情形下，应用上述两种方法所得到的挠曲线几乎重合。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "小变形情形下，两种方法得到的挠曲线几乎重合。",
+        "keypoints": [
+          "小变形下两种方法挠曲线几乎重合"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F17"
+      ],
+      "forbidden_claims": [
+        "两种方法结果差异很大"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：对比结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-19",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文给出的悬臂梁挠曲线解析函数（自由端受轴向压力与横向力联合作用）适用范围是什么？",
+      "evidence": [
+        {
+          "fact_id": "F18",
+          "role": "essential",
+          "doc": "R02",
+          "page": 3,
+          "section": "2. 悬臂梁在轴向压力和横向力联合作用下的小变形弯曲",
+          "quote": "这就是等截面悬臂梁在其自由端承受轴向压力和横向力联合作用时的挠曲线解析函数，需要说明的是该函数仅适用于梁的小变形弯曲情形。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "该解析函数仅适用于梁的小变形弯曲情形。",
+        "keypoints": [
+          "仅适用于小变形弯曲情形"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F18"
+      ],
+      "forbidden_claims": [
+        "适用于任意变形情形"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：模型适用范围抽取。"
+    },
+    {
+      "id": "Q-R1-A2-03",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "小变形算例中，方法1和方法2得到的自由端挠度各是多少？相对误差是多少？",
+      "evidence": [
+        {
+          "fact_id": "F19",
+          "role": "essential",
+          "doc": "R02",
+          "page": 5,
+          "section": "4. 算例",
+          "quote": "其中由方法1 所求得的梁的自由端的挠度是0.0584 m，由方法2 所求得的梁的自由端的挠度是0.0582 m，前者相对于后者的误差(相对误差)仅为0.3436%。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "方法1_m": 0.0584,
+          "方法2_m": 0.0582,
+          "相对误差": "0.3436%"
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 0.0005
+        },
+        "keypoints": [
+          "方法1得到自由端挠度 0.0584 m",
+          "方法2得到 0.0582 m",
+          "相对误差仅 0.3436%"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F19"
+      ],
+      "forbidden_claims": [
+        "误差大于 5%"
+      ],
+      "judge_rubric": [
+        "数值与误差都答对算 correct",
+        "只答数值算 partial",
+        "数值错误算 wrong"
+      ],
+      "notes": "R1/A2：数值对比抽取。"
+    },
+    {
+      "id": "Q-R1-A2-04",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "大变形算例中，方法1相对方法2计算自由端挠度的误差是多少？",
+      "evidence": [
+        {
+          "fact_id": "F20",
+          "role": "essential",
+          "doc": "R02",
+          "page": 5,
+          "section": "4. 算例",
+          "quote": "在计算梁的自由端的挠度上,方法1 相对于方法2 的结果误差(相对误差)高达40.72%。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "误差": "40.72%"
+        },
+        "keypoints": [
+          "大变形算例中方法1相对方法2的误差高达 40.72%"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F20"
+      ],
+      "forbidden_claims": [
+        "误差小于 10%"
+      ],
+      "judge_rubric": [
+        "数值答对算 correct",
+        "数值错误算 wrong"
+      ],
+      "notes": "R1/A2：数值抽取。"
+    },
+    {
+      "id": "Q-R1-A2-05",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该研究计算得到的约束压力范围是多少？",
+      "evidence": [
+        {
+          "fact_id": "F21",
+          "role": "essential",
+          "doc": "R03",
+          "page": 2,
+          "section": "Abstract",
+          "quote": "Confinements ranging from 5 to 19 MPa were calculated."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "下限_MPa": 5,
+          "上限_MPa": 19
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 1
+        },
+        "keypoints": [
+          "计算得到的约束压力范围为 5 至 19 MPa"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F21"
+      ],
+      "forbidden_claims": [
+        "范围显著不同"
+      ],
+      "judge_rubric": [
+        "范围答对算 correct",
+        "范围错算 wrong"
+      ],
+      "notes": "R1/A2：数值范围抽取。"
+    },
+    {
+      "id": "Q-R1-A1-20",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该研究通过什么手段考察钢套筒约束高强混凝土的应力-应变特性？",
+      "evidence": [
+        {
+          "fact_id": "F22",
+          "role": "essential",
+          "doc": "R03",
+          "page": 2,
+          "section": "Abstract",
+          "quote": "An experimental investigation was conducted on the stress-strain\ncharacteristics of steel sleeve confined high-strength concrete\n(HSC)."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "该研究通过试验考察了钢套筒约束高强混凝土（HSC）的应力-应变特性。",
+        "keypoints": [
+          "通过试验考察",
+          "对象是钢套筒约束高强混凝土（HSC）的应力-应变特性"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F22"
+      ],
+      "forbidden_claims": [
+        "通过数值模拟考察"
+      ],
+      "judge_rubric": [
+        "手段与对象都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试验设计抽取。"
+    },
+    {
+      "id": "Q-R1-A2-06",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该研究发现 HSC 的内摩擦角是多少？这说明了什么？",
+      "evidence": [
+        {
+          "fact_id": "F24",
+          "role": "essential",
+          "doc": "R03",
+          "page": 7,
+          "section": "SUMMARY AND CONCLUSIONS",
+          "quote": "It was found that HSC is pressure sensitive\nwith a friction angle of 49.5 degrees."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "研究发现 HSC 具有压力敏感性，内摩擦角为 49.5 度。",
+        "keypoints": [
+          "HSC 具有压力敏感性",
+          "内摩擦角为 49.5 度"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F24"
+      ],
+      "forbidden_claims": [
+        "内摩擦角显著不同"
+      ],
+      "judge_rubric": [
+        "数值与性质都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：数值+性质抽取。"
+    },
+    {
+      "id": "Q-R1-A1-21",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "conclusion"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文对约束钢材用量与 HSC 延性的关系得出了什么结论？",
+      "evidence": [
+        {
+          "fact_id": "F25",
+          "role": "essential",
+          "doc": "R03",
+          "page": 7,
+          "section": "SUMMARY AND CONCLUSIONS",
+          "quote": "It is concluded that HSC can become ductile if enough\nconfining steel is used."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "只要约束钢材足够多，HSC 就能表现出延性。",
+        "keypoints": [
+          "只要约束钢材足够多",
+          "HSC 就能表现出延性"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F25"
+      ],
+      "forbidden_claims": [
+        "约束钢材再多 HSC 也呈脆性"
+      ],
+      "judge_rubric": [
+        "条件与结论都答对算 correct",
+        "只答结论算 partial",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-22",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该试验共测试了多少个试件？混凝土核心的尺寸是多少？",
+      "evidence": [
+        {
+          "fact_id": "F63",
+          "role": "essential",
+          "doc": "R03",
+          "page": 3,
+          "section": "Experimental Study — Specimen geometry",
+          "quote": "Eighteen specimens (two for each confinement), confined\nas shown in Table 1, have been tested. The specimens were\nprepared by filling the steel sleeves with HSC rated at fc′ =\n71 MPa (10,300 psi). The core of the specimens (that is, the\nconcrete fill) has 102 mm (4 in.) diameter and 203 mm (8 in.)\nheight."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "试件数": 18,
+          "直径_in": 4,
+          "高度_in": 8
+        },
+        "keypoints": [
+          "共测试 18 个试件（每种约束水平 2 个）",
+          "混凝土核心直径 102 mm（4 in.）、高 203 mm（8 in.）"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F63"
+      ],
+      "forbidden_claims": [
+        "试件数或尺寸明显不同"
+      ],
+      "judge_rubric": [
+        "试件数与尺寸都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试验参数抽取。"
+    },
+    {
+      "id": "Q-R1-A3-02",
+      "retrieval_level": "R1",
+      "answer_level": "A3",
+      "tags": [
+        "formula"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "式(1)如何计算钢套筒壁厚？设计取什么条件？",
+      "evidence": [
+        {
+          "fact_id": "F65",
+          "role": "essential",
+          "doc": "R03",
+          "page": 3,
+          "section": "Design of Experimental Process",
+          "quote": "This results in the\nfollowing relation\n(1)\nwhere t is the sleeve wall thickness; p is the internal sleeve\npressure (that is, the specimen confinement); D is the internal\ndiameter of the sleeve; and σθ is the sleeve hoop pressure that\nis assumed to be equal to the yield stress of the sleeve steel:\n448 MPa (65,000 psi)."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "式(1)将钢套筒视为受均匀内压的薄壁圆筒，取环向应力 σθ 等于套筒钢屈服应力 448 MPa（65,000 psi）来计算壁厚 t=pD/(2σθ)。",
+        "keypoints": [
+          "将钢套筒视为受均匀内压的薄壁圆筒",
+          "取环向应力 σθ 等于钢屈服应力 448 MPa（65,000 psi）",
+          "壁厚按 t=pD/(2σθ) 计算"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F65"
+      ],
+      "forbidden_claims": [
+        "取环向应力为 0 或取错值"
+      ],
+      "judge_rubric": [
+        "设计假定与公式都答对算 correct",
+        "只答公式算 partial",
+        "公式错误算 wrong"
+      ],
+      "notes": "R1/A3：公式设计题。"
+    },
+    {
+      "id": "Q-R1-A1-23",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "含钢率 1.5%、3.1%、4.6% 的破坏试件（1B、2B、3B）破坏时形成什么形态的剪切破坏面？",
+      "evidence": [
+        {
+          "fact_id": "F66",
+          "role": "essential",
+          "doc": "R03",
+          "page": 4,
+          "section": "Experimental Study — Test results",
+          "quote": "This is clearly indicated in\nFig. 5 for specimens with confining steel of 1.5, 3.1, and\n4.6% (1B, 2B, and 3B, respectively). At that time, shear fail-\nure plains inclined to 65 to 70 degrees were formed."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "这些试件在破坏时形成倾角 65~70 度的剪切破坏面。",
+        "keypoints": [
+          "形成倾角 65~70 度的剪切破坏面"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F66"
+      ],
+      "forbidden_claims": [
+        "形成 45 度以下剪切面"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "角度错误算 wrong"
+      ],
+      "notes": "R1/A1：试验现象抽取。"
+    },
+    {
+      "id": "Q-R1-A1-24",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "conclusion"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "作者对螺旋箍筋与钢套筒的约束效果有何预期与观察？",
+      "evidence": [
+        {
+          "fact_id": "F67",
+          "role": "essential",
+          "doc": "R03",
+          "page": 7,
+          "section": "Analysis of test results — discussion",
+          "quote": "Because the spiral\nwires are subjected to pure uniaxial tension, they are expected\nto develop the full yield stress rather than the reduced values\nobserved herein."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "作者预期螺旋箍筋的钢丝因承受纯单轴拉力而能发挥全部屈服应力，而非本文钢套筒中观察到的折减值。",
+        "keypoints": [
+          "预期螺旋箍筋钢丝发挥全部屈服应力",
+          "不同于钢套筒中观察到的折减值"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F67"
+      ],
+      "forbidden_claims": [
+        "螺旋箍筋也会折减"
+      ],
+      "judge_rubric": [
+        "预期与对比都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-25",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "code",
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "采用 HRB400 和 RRB400 级钢筋以及承受重复荷载的构件，混凝土强度等级有什么要求？",
+      "evidence": [
+        {
+          "fact_id": "F48",
+          "role": "essential",
+          "doc": "R05",
+          "page": 9,
+          "section": "4.1.2 混凝土强度等级",
+          "quote": "当采用HRB400和RRB400级钢筋以及承\n受重复荷载的构件，混凝土强度等级不得低于C20"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "采用 HRB400 和 RRB400 级钢筋以及承受重复荷载的构件，混凝土强度等级不得低于 C20。",
+        "keypoints": [
+          "混凝土强度等级不得低于 C20"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F48"
+      ],
+      "forbidden_claims": [
+        "不得低于 C30"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "等级答错算 wrong"
+      ],
+      "notes": "R1/A1：规范条款抽取。"
+    },
+    {
+      "id": "Q-R1-A1-26",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "code"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "按 EN 1994-1-1 和 AISC 360-16 计算长径比较小的构件时，会出现什么问题？",
+      "evidence": [
+        {
+          "fact_id": "F31",
+          "role": "essential",
+          "doc": "R08",
+          "page": 10,
+          "section": "5 结论",
+          "quote": "4) 采用欧洲规范EN 1994-1-1、美国规范AISC\n360-16 计算了钢管约束钢筋混凝土柱的轴压承载\n力，结果表明二者在构件长径比较小时较低估计了钢\n管对混凝土的强约束效应，导致计算结果较为保守。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "按这些规范计算长径比较小的构件时，会低估钢管对混凝土的强约束效应，使结果偏保守。",
+        "keypoints": [
+          "低估钢管对混凝土的强约束效应",
+          "使结果偏保守"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F31"
+      ],
+      "forbidden_claims": [
+        "高估约束效应"
+      ],
+      "judge_rubric": [
+        "两点都答对算 correct",
+        "只答一点算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：规范适用性抽取。"
+    },
+    {
+      "id": "Q-R1-A1-27",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "specimen"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "试件钢管上的缝开在什么位置、尺寸多大？作用是什么？",
+      "evidence": [
+        {
+          "fact_id": "F32",
+          "role": "essential",
+          "doc": "R08",
+          "page": 2,
+          "section": "1.1 试件设计",
+          "quote": "钢管在距柱上下端100 mm 的位置留有\n一道宽10 mm 的缝，以保证其不直接承担竖向荷载。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "试件钢管在距柱上下端 100 mm 处留有一道宽 10 mm 的缝，以保证钢管不直接承担竖向荷载。",
+        "keypoints": [
+          "缝在距柱上下端 100 mm 处、宽 10 mm",
+          "保证钢管不直接承担竖向荷载"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F32"
+      ],
+      "forbidden_claims": [
+        "缝开在柱中部"
+      ],
+      "judge_rubric": [
+        "位置/作用都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试件构造抽取。"
+    },
+    {
+      "id": "Q-R1-A1-28",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "model"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "文中对不同长细比构件钢管的平均环向应力做了什么处理？",
+      "evidence": [
+        {
+          "fact_id": "F33",
+          "role": "essential",
+          "doc": "R08",
+          "page": 6,
+          "section": "2.4 钢管的约束效应",
+          "quote": "在综合考虑图\n8 所示物理意义的基础上，对试验数据进行了拟合，\n得到了不同长细比构件钢管平均环向应力的经验\n计算式"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "文中拟合得到了不同长细比构件钢管平均环向应力的经验计算式。",
+        "keypoints": [
+          "拟合得到不同长细比构件钢管平均环向应力的经验计算式"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F33"
+      ],
+      "forbidden_claims": [
+        "直接采用规范公式"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：模型抽取。"
+    },
+    {
+      "id": "Q-R1-A2-07",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "中长柱的外包钢管在加载至峰值荷载的多少比例时发生屈曲？",
+      "evidence": [
+        {
+          "fact_id": "F34",
+          "role": "essential",
+          "doc": "R08",
+          "page": 3,
+          "section": "2.2 荷载-位移曲线",
+          "quote": "待荷载达到峰值荷载的82% ～87% ，外\n包钢管发生屈曲"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "中长柱的外包钢管在加载至峰值荷载的 82%~87% 时发生屈曲。",
+        "keypoints": [
+          "中长柱钢管在峰值荷载的 82%~87% 时发生屈曲"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F34"
+      ],
+      "forbidden_claims": [
+        "50% 以下"
+      ],
+      "judge_rubric": [
+        "比例区间答对算 correct",
+        "区间错误算 wrong"
+      ],
+      "notes": "R1/A2：数值抽取。"
+    },
+    {
+      "id": "Q-R1-A2-08",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "有限元参数分析中，钢管径厚比 D/t 的取值范围是多少？",
+      "evidence": [
+        {
+          "fact_id": "F35",
+          "role": "essential",
+          "doc": "R08",
+          "page": 7,
+          "section": "3.4 参数分析",
+          "quote": "表2\n参数取值\nTable 2\nValues of studied parameters\n参数\n取值范围\nfc /MPa\n30，40，50，60，70\nfyt /MPa\n300，400，500\nfys /MPa\n300，400，500\nD/t\n80，100，120，150，200"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "有限元参数分析中钢管径厚比 D/t 的取值范围为 80、100、120、150、200。",
+        "keypoints": [
+          "D/t 取 80、100、120、150、200"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F35"
+      ],
+      "forbidden_claims": [
+        "取值明显不同"
+      ],
+      "judge_rubric": [
+        "取值答对算 correct",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：参数范围抽取。"
+    },
+    {
+      "id": "Q-R1-A1-29",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该研究对多少根圆钢管约束钢筋混凝土柱进行了试验？变化参数是什么？",
+      "evidence": [
+        {
+          "fact_id": "F83",
+          "role": "essential",
+          "doc": "R08",
+          "page": 1,
+          "section": "摘要",
+          "quote": "以柱长\n径比( L/D ) 、钢管径厚比( D/t ) 为变化参数，对10 根圆钢管约束钢筋混凝土柱的轴压力学性能进行试验研究，并对各试\n件的破坏模式、承载力及荷载-钢管应力曲线进行对比分析。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "以柱长径比(L/D)和钢管径厚比(D/t)为变化参数，对 10 根圆钢管约束钢筋混凝土柱的轴压力学性能进行了试验。",
+        "keypoints": [
+          "试验 10 根柱",
+          "变化参数为长径比 L/D 和径厚比 D/t"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F83"
+      ],
+      "forbidden_claims": [
+        "试验 5 根、参数不同"
+      ],
+      "judge_rubric": [
+        "数量与参数都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试验设计抽取。"
+    },
+    {
+      "id": "Q-R1-A1-30",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "中长柱试件采用什么方式施加轴向力？",
+      "evidence": [
+        {
+          "fact_id": "F84",
+          "role": "essential",
+          "doc": "R08",
+          "page": 2,
+          "section": "1.2 加载装置及测量方案",
+          "quote": "对于中长柱( L /D 为6、10) ，由于构件较长，试验过\n程易产生整体挠曲，为安全起见，采用刀口铰对试件\n施加轴向力，轴向荷载则采用校核并修正后的压力\n机表显读数。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "中长柱（L/D 为 6、10）试件采用刀口铰施加轴向力，轴向荷载采用校核并修正后的压力机表显读数。",
+        "keypoints": [
+          "采用刀口铰施加轴向力",
+          "荷载采用校核修正后的压力机表显读数"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F84"
+      ],
+      "forbidden_claims": [
+        "直接采用压力机施加"
+      ],
+      "judge_rubric": [
+        "两点都答对算 correct",
+        "只答一点算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试验方法抽取。"
+    },
+    {
+      "id": "Q-R1-A1-31",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "design"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文建议的钢管约束钢筋混凝土柱截面承载力 N0 如何计算？",
+      "evidence": [
+        {
+          "fact_id": "F86",
+          "role": "essential",
+          "doc": "R08",
+          "page": 9,
+          "section": "4.3 建议设计方法",
+          "quote": "为考虑这种差别，将钢管约束钢筋混\n凝土柱的截面承载力N0 考虑为钢管所承担纵向荷\n载、约束混凝土的承载力和钢筋承载力的叠加，表达\n式为"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "建议将截面承载力 N0 取为钢管所承担纵向荷载、约束混凝土承载力和钢筋承载力三者的叠加。",
+        "keypoints": [
+          "N0 为钢管纵向荷载、约束混凝土承载力、钢筋承载力三者叠加"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F86"
+      ],
+      "forbidden_claims": [
+        "N0 仅取混凝土承载力"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：设计方法抽取。"
+    },
+    {
+      "id": "Q-R1-A2-09",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "有限元模型验证中采用的缺陷幅值是多少？",
+      "evidence": [
+        {
+          "fact_id": "F87",
+          "role": "essential",
+          "doc": "R08",
+          "page": 7,
+          "section": "3.3 初始缺陷及模型验证",
+          "quote": "经过多次试算，发现采用\nL /500 的缺陷幅值时有限元结果与试验吻合较好\n( 图4) ，故统一采用L /500 的缺陷幅值进行分析。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "采用 L/500 的缺陷幅值时有限元结果与试验吻合较好，故统一采用 L/500 的缺陷幅值。",
+        "keypoints": [
+          "缺陷幅值取 L/500"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F87"
+      ],
+      "forbidden_claims": [
+        "L/1000 或其他值"
+      ],
+      "judge_rubric": [
+        "数值答对算 correct",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：数值抽取。"
+    },
+    {
+      "id": "Q-R1-A1-32",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "Na 等学者如何开展剪力结构损伤识别研究？",
+      "evidence": [
+        {
+          "fact_id": "F54",
+          "role": "essential",
+          "doc": "R09",
+          "page": 5,
+          "section": "2.3.2 数据驱动的智能养维护",
+          "quote": "Na 等学者[17]针对结构健康监测数据稀缺导致的损伤识别误差问题，开展了基于遗传算法的剪力结\n构损伤识别研究。该研究在动态特性数据有限且结构刚度参数存在不确定性的情况下，利用结构柔性矩\n阵推导损伤程度和位置，实现了高效的损伤评估。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "Na 等基于遗传算法开展剪力结构损伤识别研究，在动态特性数据有限且刚度参数不确定的情况下，利用结构柔性矩阵推导损伤程度和位置。",
+        "keypoints": [
+          "基于遗传算法",
+          "利用结构柔性矩阵推导损伤程度和位置"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F54"
+      ],
+      "forbidden_claims": [
+        "基于深度学习"
+      ],
+      "judge_rubric": [
+        "方法都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：方法抽取。"
+    },
+    {
+      "id": "Q-R1-A1-33",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文对 AI 系统可解释性的态度是什么？",
+      "evidence": [
+        {
+          "fact_id": "F55",
+          "role": "essential",
+          "doc": "R09",
+          "page": 3,
+          "section": "2.3 智能养维护",
+          "quote": "如果AI 系统无法提供合理的解释或推算过程，那么其应\n用可能会受到限制且存在安全隐患[10]。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "该文指出，如果 AI 系统无法提供合理的解释或推算过程，其应用可能会受到限制且存在安全隐患。",
+        "keypoints": [
+          "AI 无法解释时会限制应用",
+          "且存在安全隐患"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F55"
+      ],
+      "forbidden_claims": [
+        "AI 无需解释"
+      ],
+      "judge_rubric": [
+        "两点都答对算 correct",
+        "只答一点算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：观点抽取。"
+    },
+    {
+      "id": "Q-R1-A1-34",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文对土木工程智能化未来研究的展望是什么？",
+      "evidence": [
+        {
+          "fact_id": "F56",
+          "role": "essential",
+          "doc": "R09",
+          "page": 9,
+          "section": "5 结论",
+          "quote": "未来的研究应着眼于土木工程全生命周期的智能化发展，从设计、规划到养维护，全方位提升各阶段的\n智能化水平。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "未来研究应着眼于土木工程全生命周期的智能化发展，从设计、规划到养维护全方位提升各阶段智能化水平。",
+        "keypoints": [
+          "着眼土木工程全生命周期智能化",
+          "覆盖设计、规划到养维护"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F56"
+      ],
+      "forbidden_claims": [
+        "仅关注施工阶段"
+      ],
+      "judge_rubric": [
+        "范围都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：展望抽取。"
+    },
+    {
+      "id": "Q-R1-A1-35",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文认为传统土木工程在面对什么情况时暴露局限性？",
+      "evidence": [
+        {
+          "fact_id": "F88",
+          "role": "essential",
+          "doc": "R09",
+          "page": 2,
+          "section": "1. 引言",
+          "quote": "然而，传统的土木工程在\n实际应用过程中，面对日益复杂且不确定性增加的工程需求、质量要求和环境条件时，往往暴露出一定\n的局限性。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "传统土木工程在面对日益复杂且不确定性增加的工程需求、质量要求和环境条件时往往暴露出一定的局限性。",
+        "keypoints": [
+          "面对日益复杂且不确定性增加的工程需求、质量要求、环境条件时暴露局限"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F88"
+      ],
+      "forbidden_claims": [
+        "面对常规工程时也局限"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：观点抽取。"
+    },
+    {
+      "id": "Q-R1-A1-36",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "survey"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "林博等学者在智能规划方面做了什么工作？",
+      "evidence": [
+        {
+          "fact_id": "F89",
+          "role": "essential",
+          "doc": "R09",
+          "page": 3,
+          "section": "2.2. 智能设计",
+          "quote": "此外，林博等[8]学者还建立了城市规划案例数据库，利用机器学习和深度学习技术，对城市布局进\n行智能规划。他们以温州中央绿轴为例，成功验证了这一方法的可行性与有效性。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "林博等建立了城市规划案例数据库，利用机器学习和深度学习技术对城市布局进行智能规划，并以温州中央绿轴为例验证了可行性。",
+        "keypoints": [
+          "建立城市规划案例数据库",
+          "用机器学习/深度学习智能规划城市布局",
+          "以温州中央绿轴为例验证"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F89"
+      ],
+      "forbidden_claims": [
+        "仅做理论没有验证"
+      ],
+      "judge_rubric": [
+        "方法与应用都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：案例抽取。"
+    },
+    {
+      "id": "Q-R1-A2-10",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文关键词控制面板的阈值参数设定为多少？作用是什么？",
+      "evidence": [
+        {
+          "fact_id": "F91",
+          "role": "essential",
+          "doc": "R09",
+          "page": 6,
+          "section": "3. 人工智能在土木工程中的应用研究趋势",
+          "quote": "在共性参数框架下，通过设定关键词控制面板的阈值参数为13，有效过滤了低频关键词，聚焦于核\n心议题，构建出关键词共现网络图(如图4 所示)。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "在共性参数框架下将关键词控制面板的阈值参数设定为 13，以过滤低频关键词并构建关键词共现网络图。",
+        "keypoints": [
+          "阈值参数设定为 13",
+          "用于过滤低频关键词并构建共现网络图"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F91"
+      ],
+      "forbidden_claims": [
+        "阈值显著不同"
+      ],
+      "judge_rubric": [
+        "数值与作用都答对算 correct",
+        "只答数值算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：参数+用途抽取。"
+    },
+    {
+      "id": "Q-R1-A2-11",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文表2的关键词中心性统计中，哪个关键词的中心性最高？是多少？",
+      "evidence": [
+        {
+          "fact_id": "F92",
+          "role": "essential",
+          "doc": "R09",
+          "page": 7,
+          "section": "3. 人工智能在土木工程中的应用研究趋势",
+          "quote": "序号 \n关键词 \n中心性 \n序号 \n关键词 \n中心性 \n1 \n人工智能 \n0.58 \n16 \n发展趋势 \n0.06 \n2 \n机器人 \n0.21"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "关键词": "人工智能",
+          "中心性": 0.58
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 0.01
+        },
+        "keypoints": [
+          "人工智能中心性最高",
+          "中心性为 0.58"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F92"
+      ],
+      "forbidden_claims": [
+        "关键词或数值错误"
+      ],
+      "judge_rubric": [
+        "关键词与数值都答对算 correct",
+        "只答一个算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：表格取数。"
+    },
+    {
+      "id": "Q-R1-A1-37",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "未经横向加劲处理的钢筋混凝土矮墩在地震中表现如何？",
+      "evidence": [
+        {
+          "fact_id": "F57",
+          "role": "essential",
+          "doc": "R10",
+          "page": 17,
+          "section": "1.1.1 研究背景",
+          "quote": "试验和大量震害表明，未经横向加劲处理的钢筋混凝土矮墩破坏呈明显脆\n性"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "试验和大量震害表明，未经横向加劲处理的钢筋混凝土矮墩呈明显脆性破坏。",
+        "keypoints": [
+          "未经横向加劲处理的矮墩呈明显脆性破坏"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F57"
+      ],
+      "forbidden_claims": [
+        "矮墩呈延性破坏"
+      ],
+      "judge_rubric": [
+        "结论答对算 correct",
+        "相反算 wrong"
+      ],
+      "notes": "R1/A1：结论抽取。"
+    },
+    {
+      "id": "Q-R1-A1-38",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "design"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文提出的双柱钢管约束钢筋混凝土排架桥墩是如何构造的？连接钢板起什么作用？",
+      "evidence": [
+        {
+          "fact_id": "F58",
+          "role": "essential",
+          "doc": "R10",
+          "page": 21,
+          "section": "1.1.2 研究意义",
+          "quote": "双柱钢管约束钢筋混凝土排架桥墩（图1.6）\n由连接钢板将两侧的钢管约束钢筋混凝土柱连接从而形成整体，此双柱排架桥墩\n在地震中，连接钢板既将两柱形成整体又耗散能量"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "由连接钢板将两侧的钢管约束钢筋混凝土柱连接成整体，连接钢板在地震中兼起整体连接与耗能作用。",
+        "keypoints": [
+          "连接钢板将两侧钢管约束钢筋混凝土柱连成整体",
+          "连接钢板兼起整体连接与耗能作用"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F58"
+      ],
+      "forbidden_claims": [
+        "连接钢板仅起连接作用"
+      ],
+      "judge_rubric": [
+        "构造与作用都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：构造抽取。"
+    },
+    {
+      "id": "Q-R1-A1-39",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "experiment"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "所有试件的破坏位置与破坏形式是什么？",
+      "evidence": [
+        {
+          "fact_id": "F60",
+          "role": "essential",
+          "doc": "R10",
+          "page": 123,
+          "section": "5.3.2 破坏模式分析",
+          "quote": "从图5.6-图5.9 试件的破坏可知，所有试件均在墩底切缝位置发生截面的弯曲\n破坏，Mode A 试件上部在G1 切缝位置发生截面的弯曲破坏，Mode B 试件上部在\nG2 切缝位置发生截面的弯曲破坏。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "所有试件均在墩底切缝位置发生截面弯曲破坏；Mode A 试件上部在 G1 切缝处、Mode B 试件上部在 G2 切缝处发生弯曲破坏。",
+        "keypoints": [
+          "所有试件在墩底切缝位置发生截面弯曲破坏",
+          "Mode A 上部在 G1、Mode B 上部在 G2 切缝处弯曲破坏"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F60"
+      ],
+      "forbidden_claims": [
+        "在墩中发生剪切破坏"
+      ],
+      "judge_rubric": [
+        "位置与形式都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：试验现象抽取。"
+    },
+    {
+      "id": "Q-R1-A2-12",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文对圆钢管直径与壁厚之比 D/t 的规定是什么？",
+      "evidence": [
+        {
+          "fact_id": "F62",
+          "role": "essential",
+          "doc": "R10",
+          "page": 170,
+          "section": "7.4 双柱式钢管约束钢筋混凝土桥墩构造措施和适用范围",
+          "quote": "②圆钢管直径与壁厚之比D/t 不宜小于100，且不宜大于200。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "圆钢管直径与壁厚之比 D/t 不宜小于 100，且不宜大于 200。",
+        "keypoints": [
+          "D/t 不宜小于 100",
+          "且不宜大于 200"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F62"
+      ],
+      "forbidden_claims": [
+        "允许小于 100"
+      ],
+      "judge_rubric": [
+        "上下限都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：规范数值抽取。"
+    },
+    {
+      "id": "Q-R1-A1-40",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "specimen"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该通梁式节点中，钢管与梁纵向钢筋的关系是什么？",
+      "evidence": [
+        {
+          "fact_id": "F93",
+          "role": "essential",
+          "doc": "R11",
+          "page": 1,
+          "section": "Abstract",
+          "quote": "In this connection system, the steel tube is completely curtailed at the corresponding beam\nlocation, with the longitudinal steel reinforcing bars for the beam remaining continuous through the connection region."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "钢管在对应的梁位置被完全截断，梁的纵向钢筋连续穿过节点区。",
+        "keypoints": [
+          "钢管在梁位置被完全截断",
+          "梁纵向钢筋连续穿过节点区"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F93"
+      ],
+      "forbidden_claims": [
+        "钢管连续穿过节点"
+      ],
+      "judge_rubric": [
+        "两点都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：构造抽取。"
+    },
+    {
+      "id": "Q-R1-A3-03",
+      "retrieval_level": "R1",
+      "answer_level": "A3",
+      "tags": [
+        "formula"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该文提出的 CFST 柱与 RC 梁节点极限轴压承载力经验公式是什么？",
+      "evidence": [
+        {
+          "fact_id": "F97",
+          "role": "essential",
+          "doc": "R11",
+          "page": 11,
+          "section": "Prediction of Axial Compressive Strength of Connection Zone",
+          "quote": "Thus, the empirical formula for predicting the ultimate axial\ncompressive strength of the connection between CFST columns\nand RC beams is proposed as"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "经验公式为 Ncal = βcs·(β·0.85·fc·A1·√(A2/A1))。",
+        "keypoints": [
+          "Ncal = βcs·(β·0.85·fc·A1·√(A2/A1))"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F97"
+      ],
+      "forbidden_claims": [
+        "公式结构明显不同"
+      ],
+      "judge_rubric": [
+        "公式答对算 correct",
+        "公式错误算 wrong"
+      ],
+      "notes": "R1/A3：公式还原。"
+    },
+    {
+      "id": "Q-R1-A1-41",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "specimen"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "短柱试件的尺寸与配筋参数是什么？",
+      "evidence": [
+        {
+          "fact_id": "F98",
+          "role": "essential",
+          "doc": "R12",
+          "page": 2,
+          "section": "2.1 试件设计及加载方法",
+          "quote": "短柱直径为200mm，柱高度为600mm，钢管厚度为1.5mm，钢管含钢率为3%，\n柱截面纵筋为4B20，纵筋配筋率为4%，箍筋为A8@200；"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "短柱试件直径 200mm、柱高 600mm，钢管厚度 1.5mm、含钢率 3%，纵筋 4B20、配筋率 4%，箍筋 A8@200。",
+        "keypoints": [
+          "直径 200mm、高度 600mm",
+          "钢管厚 1.5mm、含钢率 3%",
+          "纵筋 4B20、配筋率 4%，箍筋 A8@200"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F98"
+      ],
+      "forbidden_claims": [
+        "尺寸或配筋明显不同"
+      ],
+      "judge_rubric": [
+        "尺寸与配筋都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：参数抽取。"
+    },
+    {
+      "id": "Q-R1-A1-42",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "specimen"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "角柱、边柱、中柱节点分别向几个方向伸出梁？",
+      "evidence": [
+        {
+          "fact_id": "F99",
+          "role": "essential",
+          "doc": "R12",
+          "page": 3,
+          "section": "2.2 材性试验",
+          "quote": "角柱节点2 个方向伸出梁，边柱节点3 个方向伸出\n梁，中柱节点4 个方向伸出梁，如图1 所示。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "text",
+        "value": "角柱节点 2 个方向伸出梁，边柱节点 3 个方向伸出梁，中柱节点 4 个方向伸出梁。",
+        "keypoints": [
+          "角柱 2 个方向",
+          "边柱 3 个方向",
+          "中柱 4 个方向"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F99"
+      ],
+      "forbidden_claims": [
+        "方向数明显不同"
+      ],
+      "judge_rubric": [
+        "三种节点都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A1：参数抽取。"
+    },
+    {
+      "id": "Q-R1-A2-13",
+      "retrieval_level": "R1",
+      "answer_level": "A2",
+      "tags": [
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "节点试件 CTRCJ-180-2、-3、-4 的峰值承载力各是多少？",
+      "evidence": [
+        {
+          "fact_id": "F100",
+          "role": "essential",
+          "doc": "R12",
+          "page": 4,
+          "section": "3.3 承载能力对比分析",
+          "quote": "表2 承载能力对比 \n试件编号 \nNu (kN) \nεu \nk \n相对CTRC 百分比 \nCTRC-200-a \n2950 \n5030 \n1.416  \nNum =2982 \nkm =1.410 \nCTRC-200-b \n3014 \n5493 \n1.403  \nCTRCJ-180-2 \n2094 \n4194 \n1.594  \n-29.8% \n13.1% \nCTRCJ-180-3 \n2299 \n3603 \n1.618  \n-22.9% \n14.8% \nCTRCJ-180-4 \n2510 \n4476 \n1.697  \n-15.8% \n20.4% \n注：表中Nu 为峰值承载力，εu 为峰值应变，k=( N/Nu) / (ε/εu)（归一化数值）为屈服前弹性刚度，Num 为轴压短柱平均峰值荷载，\nkm 为轴压短柱平均弹性刚度。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "CTRCJ-180-2_kN": 2094,
+          "CTRCJ-180-3_kN": 2299,
+          "CTRCJ-180-4_kN": 2510
+        },
+        "tolerance": {
+          "mode": "absolute",
+          "value": 5
+        },
+        "keypoints": [
+          "CTRCJ-180-2 峰值承载力 2094 kN",
+          "CTRCJ-180-3 为 2299 kN",
+          "CTRCJ-180-4 为 2510 kN"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F100"
+      ],
+      "forbidden_claims": [
+        "数值明显不同"
+      ],
+      "judge_rubric": [
+        "三个数值都答对算 correct",
+        "只答一半算 partial",
+        "错误算 wrong"
+      ],
+      "notes": "R1/A2：数值对比抽取。"
+    },
+    {
+      "id": "Q-R4-A1-05",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "关于约束混凝土柱的破坏模式，R08 和 R12 两篇文献的试验结论是否一致？",
+      "evidence": [
+        {
+          "fact_id": "F85",
+          "role": "essential",
+          "doc": "R08",
+          "page": 3,
+          "section": "2.1 破坏模式",
+          "quote": "对于短\n柱( L/D = 3) ，构件发生典型的剪切破坏，剪切角在\n60°左右。"
+        },
+        {
+          "fact_id": "F101",
+          "role": "essential",
+          "doc": "R12",
+          "page": 1,
+          "section": "摘要",
+          "quote": "试验结果表明，轴压短柱破坏形式为剪切破坏，节点\n的破坏形式为核心区混凝土压溃破坏；"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R08": "短柱发生典型剪切破坏，剪切角约60°",
+          "R12": "短柱剪切破坏，节点为核心区混凝土压溃破坏"
+        },
+        "keypoints": [
+          "R08 短柱发生典型剪切破坏、剪切角约 60°",
+          "R12 短柱同样为剪切破坏，节点为核心区混凝土压溃破坏",
+          "两文对短柱剪切破坏的结论一致"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F85",
+        "F101"
+      ],
+      "forbidden_claims": [
+        "认为两文结论冲突"
+      ],
+      "judge_rubric": [
+        "两文结论都答对并指出一致性算 correct",
+        "只答一方算 partial",
+        "误判冲突算 wrong"
+      ],
+      "notes": "跨 R08/R12 对比短柱破坏模式，两文结论一致（非冲突），考察跨文档一致性判断，R4/A1。"
+    },
+    {
+      "id": "Q-R4-A2-07",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "R10 对钢管径厚比 D/t 的规定与 R08 有限元参数分析的取值区间有何关系？",
+      "evidence": [
+        {
+          "fact_id": "F62",
+          "role": "essential",
+          "doc": "R10",
+          "page": 170,
+          "section": "7.4 双柱式钢管约束钢筋混凝土桥墩构造措施和适用范围",
+          "quote": "②圆钢管直径与壁厚之比D/t 不宜小于100，且不宜大于200。"
+        },
+        {
+          "fact_id": "F35",
+          "role": "essential",
+          "doc": "R08",
+          "page": 7,
+          "section": "3.4 参数分析",
+          "quote": "表2\n参数取值\nTable 2\nValues of studied parameters\n参数\n取值范围\nfc /MPa\n30，40，50，60，70\nfyt /MPa\n300，400，500\nfys /MPa\n300，400，500\nD/t\n80，100，120，150，200"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R10规定": "D/t 不宜小于100且不宜大于200",
+          "R08参数": "取80、100、120、150、200"
+        },
+        "keypoints": [
+          "R10 规定 D/t 不宜小于 100 且不宜大于 200",
+          "R08 参数分析取 80、100、120、150、200",
+          "R08 的 80 超出 R10 规定下限"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F62",
+        "F35"
+      ],
+      "forbidden_claims": [
+        "把两文数值混为一谈"
+      ],
+      "judge_rubric": [
+        "两文取值都答对并指出差异算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "跨 R10/R08 对比 D/t 取值，规范规定 vs 试验参数，R4/A2。"
+    },
+    {
+      "id": "Q-R4-A1-06",
+      "retrieval_level": "R4",
+      "answer_level": "A1",
+      "tags": [
+        "cross_doc",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "R08 和 R11 分别如何预测钢管约束混凝土构件的承载力？",
+      "evidence": [
+        {
+          "fact_id": "F86",
+          "role": "essential",
+          "doc": "R08",
+          "page": 9,
+          "section": "4.3 建议设计方法",
+          "quote": "为考虑这种差别，将钢管约束钢筋混\n凝土柱的截面承载力N0 考虑为钢管所承担纵向荷\n载、约束混凝土的承载力和钢筋承载力的叠加，表达\n式为"
+        },
+        {
+          "fact_id": "F97",
+          "role": "essential",
+          "doc": "R11",
+          "page": 11,
+          "section": "Prediction of Axial Compressive Strength of Connection Zone",
+          "quote": "Thus, the empirical formula for predicting the ultimate axial\ncompressive strength of the connection between CFST columns\nand RC beams is proposed as"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R08": "设计法将 N0 取为钢管纵向荷载+约束混凝土承载力+钢筋承载力三叠加",
+          "R11": "经验公式 Ncal = βcs·(β·0.85·fc·A1·√(A2/A1))"
+        },
+        "keypoints": [
+          "R08 设计法：N0 为钢管纵向荷载、约束混凝土承载力、钢筋承载力三者叠加",
+          "R11 经验公式：Ncal = βcs·(β·0.85·fc·A1·√(A2/A1))"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F86",
+        "F97"
+      ],
+      "forbidden_claims": [
+        "把两文的预测方法混为一谈"
+      ],
+      "judge_rubric": [
+        "两种方法都答对算 correct",
+        "只答一方算 partial",
+        "混淆算 wrong"
+      ],
+      "notes": "跨 R08/R11 对比承载力预测方法（设计叠加法 vs 经验公式），R4/A1。"
+    },
+    {
+      "id": "Q-R4-A3-04",
+      "retrieval_level": "R4",
+      "answer_level": "A3",
+      "tags": [
+        "cross_doc",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "R08 和 R12 中钢管在柱/节点中的构造处理有何异同？",
+      "evidence": [
+        {
+          "fact_id": "F32",
+          "role": "essential",
+          "doc": "R08",
+          "page": 2,
+          "section": "1.1 试件设计",
+          "quote": "钢管在距柱上下端100 mm 的位置留有\n一道宽10 mm 的缝，以保证其不直接承担竖向荷载。"
+        },
+        {
+          "fact_id": "F93",
+          "role": "essential",
+          "doc": "R11",
+          "page": 1,
+          "section": "Abstract",
+          "quote": "In this connection system, the steel tube is completely curtailed at the corresponding beam\nlocation, with the longitudinal steel reinforcing bars for the beam remaining continuous through the connection region."
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R08": "钢管距柱上下端100mm处留10mm宽缝，不直接承担竖向荷载",
+          "R12": "钢管在梁位置被完全截断，梁纵筋连续穿过节点"
+        },
+        "keypoints": [
+          "R08 钢管留缝（距端部100mm、宽10mm）保证不承担竖向荷载",
+          "R12 钢管在梁位置截断、梁纵筋连续穿过节点",
+          "两文都避免钢管直接承担部分荷载/保证传力连续"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F32",
+        "F93"
+      ],
+      "forbidden_claims": [
+        "认为两文构造完全相同"
+      ],
+      "judge_rubric": [
+        "两文构造都答对并比较算 correct",
+        "只答一方算 partial",
+        "误判相同算 wrong"
+      ],
+      "notes": "跨 R08/R12 对比钢管构造处理，考察异同归纳，R4/A3。"
+    },
+    {
+      "id": "Q-R4-A2-08",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "R03 与 R08 对约束压力的研究结论如何相互印证？",
+      "evidence": [
+        {
+          "fact_id": "F21",
+          "role": "essential",
+          "doc": "R03",
+          "page": 2,
+          "section": "Abstract",
+          "quote": "Confinements ranging from 5 to 19 MPa were calculated."
+        },
+        {
+          "fact_id": "F31",
+          "role": "essential",
+          "doc": "R08",
+          "page": 10,
+          "section": "5 结论",
+          "quote": "4) 采用欧洲规范EN 1994-1-1、美国规范AISC\n360-16 计算了钢管约束钢筋混凝土柱的轴压承载\n力，结果表明二者在构件长径比较小时较低估计了钢\n管对混凝土的强约束效应，导致计算结果较为保守。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R03": "计算约束压力范围 5-19 MPa",
+          "R08": "现行规范（EN1994/AISC）会低估钢管对混凝土的强约束效应"
+        },
+        "keypoints": [
+          "R03 计算约束压力范围 5 至 19 MPa",
+          "R08 指出规范低估强约束效应导致结果偏保守",
+          "两文都说明实际约束效应高于简单理论假定"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F21",
+        "F31"
+      ],
+      "forbidden_claims": [
+        "把两文结论割裂"
+      ],
+      "judge_rubric": [
+        "两文结论都答对并指出印证关系算 correct",
+        "只答一方算 partial",
+        "割裂算 wrong"
+      ],
+      "notes": "跨 R03/R08 对比约束压力研究，考察跨文档印证，R4/A2。"
+    },
+    {
+      "id": "Q-R4-A2-09",
+      "retrieval_level": "R4",
+      "answer_level": "A2",
+      "tags": [
+        "cross_doc",
+        "numeric",
+        "compare"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "R03 与 R08 对约束混凝土剪切破坏面的观察是否一致？",
+      "evidence": [
+        {
+          "fact_id": "F66",
+          "role": "essential",
+          "doc": "R03",
+          "page": 4,
+          "section": "Experimental Study — Test results",
+          "quote": "This is clearly indicated in\nFig. 5 for specimens with confining steel of 1.5, 3.1, and\n4.6% (1B, 2B, and 3B, respectively). At that time, shear fail-\nure plains inclined to 65 to 70 degrees were formed."
+        },
+        {
+          "fact_id": "F85",
+          "role": "essential",
+          "doc": "R08",
+          "page": 3,
+          "section": "2.1 破坏模式",
+          "quote": "对于短\n柱( L/D = 3) ，构件发生典型的剪切破坏，剪切角在\n60°左右。"
+        }
+      ],
+      "expected_behavior": "answer",
+      "answer": {
+        "type": "composite",
+        "value": {
+          "R03": "含钢率1.5%~4.6%破坏试件形成65~70度剪切面",
+          "R08": "短柱剪切角约60°"
+        },
+        "keypoints": [
+          "R03 破坏试件形成倾角 65~70 度的剪切破坏面",
+          "R08 短柱剪切角在 60°左右",
+          "两者同属剪切破坏、角度接近"
+        ]
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [
+        "F66",
+        "F85"
+      ],
+      "forbidden_claims": [
+        "认为两者破坏形态不同"
+      ],
+      "judge_rubric": [
+        "两文观察都答对并指出接近算 correct",
+        "只答一方算 partial",
+        "误判不同算 wrong"
+      ],
+      "notes": "跨 R03/R08 对比剪切破坏观察，R4/A2。"
+    },
+    {
+      "id": "Q-R1-A1-43",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "混凝土结构设计中，中国规范 GB 50010 的 2010 版本相比 2002 版本在裂缝控制等级上有什么改动？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确说明语料中无此信息并拒答算 correct",
+        "编造版本差异算 wrong",
+        "含糊其辞算 partial"
+      ],
+      "notes": "拒答题：语料是 GB 50010-2002，问 2010 版对比——库中无此信息，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-44",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "《钢管混凝土结构技术规程》GB 50936 中规定的钢管混凝土柱承载力折减系数是多少？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造系数值算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：GB 50936 不在语料中（语料是 GB 50010-2002 与论文），测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-45",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "2023 年发布的欧洲规范 EN 1992-2 桥梁部分对混凝土最小保护层厚度有什么新规定？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造数值算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：EN 1992-2 2023 版不在语料，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-46",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "美国 ACI 318-19 中抗剪钢筋的配箍率上限要求是什么？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造数值算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：ACI 318-19 不在语料（语料提到 AISC 360-16 但无其具体条款），测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-47",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "这篇论文综述中提到的 FRP 加固技术对预应力混凝土梁的长期徐变有什么影响？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造影响算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：R01 FRP 综述不含预应力梁徐变内容，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-48",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该悬臂梁论文中，梁材料用的是什么牌号钢材？屈服强度是多少？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造牌号算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：R02 悬臂梁论文讨论的是理论挠曲线，无具体钢材牌号，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-49",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "Muttoni 教授的博士导师是哪位学者？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造大学算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：两篇 CSCT 论文均不包含 Muttoni 的博士导师信息（注意：R06 作者栏含其任职单位 EPFL，故不能问任职信息——首版误将任职当语料外信息，实测被模型命中，已修正）。"
+    },
+    {
+      "id": "Q-R1-A1-50",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "该高强混凝土论文中，钢套筒试件的养护湿度是多少？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造数值算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：R03 语料未记录养护湿度，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-51",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "圆钢管约束钢筋混凝土柱论文中，试件的混凝土骨料最大粒径是多少？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造粒径算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：R08 语料未提及骨料粒径，测试拒答。"
+    },
+    {
+      "id": "Q-R1-A1-52",
+      "retrieval_level": "R1",
+      "answer_level": "A1",
+      "tags": [
+        "refusal",
+        "out_of_corpus"
+      ],
+      "layer": "in-the-wild",
+      "language": "zh",
+      "question_style": "paraphrase",
+      "status": "draft",
+      "question": "人工智能在土木工程综述中，作者是否讨论了 ChatGPT 对结构设计流程的影响？",
+      "evidence": [],
+      "expected_behavior": "refuse",
+      "answer": {
+        "type": "refusal",
+        "value": "应明确拒答，说明在已上传文档中未找到相关内容，不得编造"
+      },
+      "output_format": {
+        "style": "sentence",
+        "unit_required": false
+      },
+      "must_cite": [],
+      "forbidden_claims": [],
+      "judge_rubric": [
+        "明确拒答算 correct",
+        "编造讨论内容算 wrong",
+        "含糊算 partial"
+      ],
+      "notes": "拒答题：R09 综述未涉及 ChatGPT/大模型，测试拒答。"
     }
   ]
 }
