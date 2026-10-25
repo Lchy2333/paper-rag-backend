@@ -1,8 +1,24 @@
 package httpapi
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 )
+
+// accessLogFormatter 统一访问日志格式（与 paper-rag-agent 侧对齐）：
+//
+//	[ACCESS] 2026/10/25 - 06:17:40 | 200 | 17.851µs | 172.18.0.4 | GET "/api/v1/health"
+func accessLogFormatter(param gin.LogFormatterParams) string {
+	return fmt.Sprintf("[ACCESS] %s | %d | %s | %s | %s %q\n",
+		param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+		param.StatusCode,
+		param.Latency,
+		param.ClientIP,
+		param.Method,
+		param.Path,
+	)
+}
 
 // NewRouter 注册所有路由并返回 gin 引擎。
 //
@@ -11,7 +27,7 @@ import (
 func NewRouter(h *Handler, apiKey string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery())
+	r.Use(gin.LoggerWithFormatter(accessLogFormatter), gin.Recovery())
 
 	// 健康检查不鉴权：不泄露业务数据，且 docker-compose healthcheck 无需配置 key
 	r.GET("/api/v1/health", h.Health)
