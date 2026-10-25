@@ -63,6 +63,7 @@ python -X utf8 run_eval.py --no-ask --hybrid false --rerank true  --out eval_D.j
 ```
 goldentest/
 ├── README.md            # 本文档
+├── EVAL_REPORT.md       # 评测分析报告（最终基线结论，先看这个）
 ├── AGENT_PROMPT.md      # fact 标注 agent 提示词（加新语料时用子 agent 批量标注）
 ├── data/                # 入 git：docs.json / facts.json / golden_queries.json
 ├── tools/               # g0_check.py / run_eval.py
@@ -70,9 +71,14 @@ goldentest/
 └── results/             # gitignore：评测产物
 ```
 
-## 当前状态（2026-10-25）
+**results/ 命名约定**：`eval_<题数>_<配置>.json`——配置 `default`=线上口径（混合+rerank）、`vector`=纯向量消融；G0 门禁诊断产物为 `G0_MISSING_REPORT.md` + `g0_missing_detail.json`。每个 JSON 内部 `summary` 记录 queries/hybrid/rerank，文件自描述。
 
-- 12 篇语料 / 101 条 fact 页级 G0 全过 / 5 道题结构通过
-- chunk 级 G0：OK 71 / MISSING 30（坏文本层 11 待 OCR、表格识别 8、公式区域 6、GB 交织 4、未定位 1；明细 `results/G0_MISSING_REPORT.md`）
-- 首轮消融（5 题）：page R@10 四档均 0.867；MRR 0.750 → rerank 后 0.767；chunk R@10 恒定 0.367（瓶颈在解析器表格断行）
-- 欠账：样本量不足以分辨消融档位，扩题到 15-20 道（重点 R2/R3 字面敏感型）是下一步
+## 当前状态（2026-10-25，基线已冻结）
+
+- 数据集：12 篇语料 / 101 条 fact（91 条可用）/ **93 道题**（R1×57 · R2×6 · R3×4 · R4×16 · 拒答×10），fact 覆盖 100%
+- G0 门禁：页级 101/101 全过；chunk 级 OK 71 / MISSING 30（明细 `results/G0_MISSING_REPORT.md`）
+- **最终基线**（混合+rerank，83 道计分题）：pageR@10 = 0.775 / MRR = 0.694 / chunkR = 0.498 / 引用页召回 = 0.715
+- **拒答轴 10/10 全对**（语料外问题零编造）
+- 消融（20 题）：混合+rerank 相比纯向量 pageR +5pt / MRR +2.8pt；chunkR 两档恒定（瓶颈在解析器切分）
+- 短板归因：跨文档深层证据召回（R4=0.458）、同主题文档互相挤占、表格证据块切碎
+- 详细分析见 [EVAL_REPORT.md](EVAL_REPORT.md)；**RAG 侧逻辑冻结，本版本即为存档基线**
