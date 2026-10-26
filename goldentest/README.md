@@ -48,6 +48,10 @@ python -X utf8 g0_check.py --db --dsn $env:GOLDEN_DSN
 # 3. 评测（需后端已启动）
 python -X utf8 run_eval.py                                   # 完整：检索 + 生成
 python -X utf8 run_eval.py --no-ask                          # 只跑检索轴（快）
+# 答案正确性判定（数值程序判 + 异源 LLM 裁判，裁判先过标定）
+$env:GOLDEN_JUDGE_API_KEY = "<SiliconFlow key>"
+python -X utf8 judge.py --calibrate                          # 裁判标定（应 8/8）
+python -X utf8 run_eval.py --judge --out eval_judged.json
 
 # 4. 消融矩阵（hybrid × rerank 四档）
 python -X utf8 run_eval.py --no-ask --hybrid false --rerank false --out eval_A.json
@@ -78,7 +82,8 @@ goldentest/
 - 数据集：12 篇语料 / 101 条 fact（91 条可用）/ **93 道题**（R1×57 · R2×6 · R3×4 · R4×16 · 拒答×10），fact 覆盖 100%
 - G0 门禁：页级 101/101 全过；chunk 级 OK 71 / MISSING 30（明细 `results/G0_MISSING_REPORT.md`）
 - **最终基线**（混合+rerank，83 道计分题）：pageR@10 = 0.775 / MRR = 0.694 / chunkR = 0.498 / 引用页召回 = 0.715
-- **拒答轴 10/10 全对**（语料外问题零编造）
+- **答案正确率 = 0.639**（LLM 裁判口径；13 道 wrong 里 12 道是检索失败传导，生成侧独立问题仅 1 例）；要点覆盖 0.677
+- **拒答轴 10/10 全对、幻觉违例 0**（语料外问题零编造）
 - 消融（20 题）：混合+rerank 相比纯向量 pageR +5pt / MRR +2.8pt；chunkR 两档恒定（瓶颈在解析器切分）
 - 短板归因：跨文档深层证据召回（R4=0.458）、同主题文档互相挤占、表格证据块切碎
 - 详细分析见 [EVAL_REPORT.md](EVAL_REPORT.md)；**RAG 侧逻辑冻结，本版本即为存档基线**

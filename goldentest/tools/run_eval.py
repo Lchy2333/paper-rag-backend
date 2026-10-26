@@ -28,6 +28,8 @@ from pathlib import Path
 import psycopg2
 import requests
 
+import judge  # 答案正确性判定（--judge 启用）
+
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "data"         # golden_queries.json / docs.json
 RESULTS_DIR = BASE.parent / "results"   # 评测产物（gitignore）
@@ -142,7 +144,7 @@ def is_refused(answer: str) -> bool:
 
 
 def eval_query(q: dict, doc_map: dict, base_url: str, user_id: str, top_k: int, ask: bool,
-               hybrid: bool = None, rerank: bool = None) -> dict:
+               hybrid: bool = None, rerank: bool = None, judge_client: dict = None) -> dict:
     ev = q["evidence"]
     essential = [e for e in ev if e.get("role") == "essential"]
     supporting = [e for e in ev if e.get("role") != "essential"]
@@ -207,6 +209,9 @@ def eval_query(q: dict, doc_map: dict, base_url: str, user_id: str, top_k: int, 
             ],
             "latency_ms": a.get("latency_ms"),
         }
+        if judge_client is not None:
+            # 答案正确性判定：数值程序判 / LLM 裁判 / 拒答裁判（单题失败记 judge_error 不中断）
+            res["answer"]["correctness"] = judge.judge_answer(q, ans_text, judge_client)
     return res
 
 
@@ -222,6 +227,10 @@ def main():
     ap.add_argument("--rerank", choices=["true", "false"], default=None,
                     help="请求级精排开关：true=强制开，false=强制关；不传跟随服务端配置")
     ap.add_argument("--out", default=None, help="结果文件名（写入 results/），默认 eval_<时间戳>.json")
+    ap.add_argument("--judge", action="store_true",
+                    help="启用答案正确性判定：数值程序判 + 异源 LLM 裁判（key 走 GOLDEN_JUDGE_API_KEY）")
+    ap.add_argument("--judge-model", default=judge.DEFAULT_MODEL, help="裁判模型（须与被测 chat 模型异源）")
+    ap.add_argument("--judge-base-url", default=judge.DEFAULT_BASE_URL, help="裁判 API base_url")
     args = ap.parse_args()
 
     if not args.user_id:
@@ -243,11 +252,19 @@ def main():
     queries = json.loads((DATA_DIR / "golden_queries.json").read_text(encoding="utf-8"))["queries"]
     doc_map = load_doc_map(args.dsn)
 
+    judge_client = None
+    if args.judge:
+        judge_key = os.environ.get("GOLDEN_JUDGE_API_KEY", "")
+        if not judge_key:
+            sys.exit("缺少环境变量 GOLDEN_JUDGE_API_KEY（--judge 需要裁判模型 key）")
+        judge_client = {"base_url": args.judge_base_url, "api_key": judge_key, "model": args.judge_model}
+        print(f"[judge] 裁判模型: {args.judge_model} @ {args.judge_base_url}")
+
     rows = []
     for q in queries:
         try:
             r = eval_query(q, doc_map, args.base_url, args.user_id, args.top_k, not args.no_ask,
-                           hybrid=hybrid, rerank=rerank)
+                           hybrid=hybrid, rerank=rerank, judge_client=judge_client)
         except Exception as e:
             print(f"[FAIL] {q['id']}: {e}", file=sys.stderr)
             continue
@@ -257,6 +274,9 @@ def main():
                 f"MRR={rt['page_mrr']:.2f} chunkR@{args.top_k}={rt['chunk_recall']:.2f}")
         if "answer" in r:
             line += f" citeR={r['answer']['citation_page_recall']:.2f}"
+            c = r["answer"].get("correctness")
+            if c:
+                line += f" verdict={c['verdict']}"
         print(line)
 
     if not rows:
@@ -282,8 +302,44 @@ def main():
         summary["citation_page_recall"] = (
             sum(x["answer"]["citation_page_recall"] for x in graded) / n if n else None)
         if refused_rows:
-            summary["refusal_accuracy"] = (
-                sum(1 for x in refused_rows if x["answer"].get("refused")) / len(refused_rows))
+            # judge 开启时以 LLM 裁判为准，否则退回关键词启发式
+            if judge_client is not None:
+                ref_judged = [x for x in refused_rows
+                              if x["answer"].get("correctness", {}).get("verdict") != "judge_error"]
+                summary["refusal_accuracy"] = (
+                    sum(1 for x in ref_judged
+                        if x["answer"]["correctness"]["verdict"] == "refused") / len(ref_judged)
+                    if ref_judged else None)
+                summary["hallucination_count"] = sum(
+                    1 for x in refused_rows if x["answer"]["correctness"].get("verdict") == "hallucinated")
+            else:
+                summary["refusal_accuracy"] = (
+                    sum(1 for x in refused_rows if x["answer"].get("refused")) / len(refused_rows))
+
+    # ---- 答案正确性轴（--judge 时）----
+    if judge_client is not None:
+        graded_j = [(x, x["answer"].get("correctness") or {}) for x in graded if "answer" in x]
+        ref_j = [x["answer"].get("correctness") or {} for x in refused_rows if "answer" in x]
+        ok_j = [c for _, c in graded_j if c.get("verdict") in {"correct", "partial", "wrong"}]
+        errs = sum(1 for _, c in graded_j if c.get("verdict") == "judge_error") + \
+               sum(1 for c in ref_j if c.get("verdict") == "judge_error")
+        summary["answer_accuracy"] = (
+            sum(1 for c in ok_j if c["verdict"] == "correct") / len(ok_j)) if ok_j else None
+        summary["answer_partial_rate"] = (
+            sum(1 for c in ok_j if c["verdict"] == "partial") / len(ok_j)) if ok_j else None
+        summary["answer_wrong_rate"] = (
+            sum(1 for c in ok_j if c["verdict"] == "wrong") / len(ok_j)) if ok_j else None
+        hits = tot = 0
+        for _, c in graded_j:
+            if c.get("verdict") in {"correct", "partial", "wrong"}:
+                kh = c.get("keypoint_hits") or []
+                hits += sum(1 for h in kh if h)
+                tot += len(kh)
+        summary["keypoint_coverage"] = (hits / tot) if tot else None
+        summary["hallucination_count"] = summary.get("hallucination_count", 0) + sum(
+            len(c.get("forbidden_violations") or [])
+            for _, c in graded_j if c.get("verdict") in {"correct", "partial", "wrong"})
+        summary["judge_error_count"] = errs
 
     payload = {"summary": summary, "results": rows}
     out_path = RESULTS_DIR / out_name
