@@ -8,29 +8,30 @@
 - **Gin** Web 框架
 - **SiliconFlow 云 API**（默认）：Embedding 用 `BAAI/bge-m3`（1024 维），Chat 用 `deepseek-ai/DeepSeek-V3`，公式 OCR 用 `deepseek-ai/DeepSeek-OCR`（视觉模型），全部走 OpenAI 兼容 API
 - **OpenAI 兼容接口**：`base_url` 可切换任意 OpenAI 兼容服务（SiliconFlow / DeepSeek / 火山方舟 / OpenAI / Ollama 本地）
-- **PostgreSQL 18 + pgvector**（默认存储），也可切回内存实现便于开发
+- **PostgreSQL 18 + pgvector**（唯一存储实现，pgvector + tsvector + pg_trgm 混合检索）
 - **ledongthuc/pdf** 纯 Go PDF 文本提取（含**框线表格识别 → Markdown**、**公式区域检测**）
 
 ## 目录结构
 
 ```
-cmd/server/            # 程序入口
+cmd/server/            # 程序入口（另有 cmd/formula_ocr、cmd/formula_ocr_pdf 公式调试工具）
 config/                # 配置文件（config.example.yaml 为模板）
 db/init.sql            # 建库建表脚本
 internal/config/       # 配置加载（支持 ${ENV} 占位符）
+internal/logger/       # log/slog 封装（统一结构化日志，log.level 控制）
 internal/model/        # 领域模型
-internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown + 公式区域检测）
+internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown + 公式区域检测 + 双栏版面重建）
 internal/chunker/      # 分块（文本按字符切，表格按"表头+N 行"自包含切，公式整块独立）
-internal/ai/           # Embedding + Chat + 公式 OCR（图片截图 → LaTeX）客户端
+internal/ai/           # Embedding + Chat + 公式 OCR（图片截图 → LaTeX）+ Rerank 客户端
 internal/render/       # PDF 渲染（PyMuPDF）按公式坐标裁剪截图
 internal/segment/      # 中文分词（gojieba，纯 Go），供 tsvector 全文检索
-internal/store/        # 存储接口 + 内存/PostgreSQL 实现（pgvector + tsvector 混合检索）
-internal/service/      # 摄入流水线 / RAG 问答
-internal/httpapi/      # Gin 路由与处理器
+internal/store/        # 存储接口 + PostgreSQL 实现（pgvector + tsvector 混合检索）
+internal/service/      # 摄入流水线 / RAG 问答 / 纯检索 / 精排
+internal/httpapi/      # Gin 路由与处理器（含鉴权中间件）
+internal/worker/       # 异步摄入 worker 池（DB 队列 + 门铃）
 tests/                 # 测试：unit/ 单元测试、integration/ 集成测试（连测试库）
-goldentest/            # 黄金测试集：语料(pdf/)、事实库、问题集、评测脚本
+goldentest/            # 黄金测试集：语料(corpus/)、事实库、问题集、评测脚本
 uploads/               # 上传的 PDF 落盘目录
-temp.py                # 黄金语料生成器：生成 PDF 与 facts.json
 ```
 
 ## 快速开始
@@ -320,7 +321,7 @@ curl -X POST http://localhost:8080/api/v1/connections/test \
 }
 ```
 
-`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`rerank` 可选（请求级精排开关：**不传 = 跟随配置 `ai.rerank.enabled`**；`true` = 强制开启重排序（要求已配置 `ai.rerank.model`）；`false` = 强制关闭）。
+`query` 必填；`top_k` 可选（检索片段数，默认取配置 `rag.top_k`）；`document_ids` 可选（限定在指定文档范围内检索，不传则全库检索）；`rerank` 可选（请求级精排开关：**不传 = 跟随配置 `ai.rerank.enabled`**；`true` = 强制开启重排序（要求已配置 `ai.rerank.model`）；`false` = 强制关闭）；`hybrid` 可选（请求级混合检索开关：**不传 = 默认混合**；`false` = 纯向量，消融对比用；`true` = 强制混合）。两个开关均为布尔，JSON 里写 `true`/`false`，不能写字符串 `"true"`（绑定会 400）。
 
 - **`/search`**：按 `X-User-ID` 归属过滤（admin 全库），Agent 默认入口
 - **`/ask`**：**仅 `server.admin_users` 命中的管理员可调**（否则 403），**全局检索**（不按用户过滤）——它是内部测试接口，不对普通用户暴露
@@ -360,6 +361,7 @@ event: error      data: {"error":"..."}                            # 检索中�
 ```
 goldentest/
 ├── README.md              # 评测体系思路 + 本地跑法（入口文档）
+├── EVAL_REPORT.md         # 评测分析报告（最终基线结论，先看这个）
 ├── AGENT_PROMPT.md          # fact 标注 agent 提示词（quote 铁律 + nz 归一化）
 ├── data/                    # 入 git：纯文本数据
 │   ├── docs.json            #   语料台账（12 篇真实论文/规范，含 sha256）
@@ -367,7 +369,8 @@ goldentest/
 │   └── golden_queries.json  #   题目（双轴 R1-R4 × A1-A4 难度标签）
 ├── tools/
 │   ├── g0_check.py          #   G0 数据门禁：页级（pymupdf）+ chunk 级（数据库）
-│   └── run_eval.py          #   评测 runner：调 /search + /ask，输出检索+生成指标
+│   ├── run_eval.py          #   评测 runner：调 /search + /ask，输出检索+生成指标
+│   └── judge.py             #   答案正确性判定：数值程序判 + 异源 LLM 裁判（先标定后上岗）
 ├── corpus/                  # gitignore：PDF 语料（sha256 校验见 data/docs.json）
 └── results/                 # gitignore：评测产物
 ```
@@ -384,7 +387,7 @@ goldentest/
 | `tests/unit/` | 单元测试（分块/配置/余弦/PDF/HTTP 层） | 无 |
 | `tests/integration/` | PostgreSQL 集成测试 | 真实数据库 |
 
-`tests/unit/` 里的 `TestParseRealPDFs*` 会解析 `goldentest/pdf/` 下的真实 PDF，并用 `goldentest/facts.json` 校验 50 条事实能逐字命中（黄金集未提交时自动跳过）。
+`tests/unit/` 里的 `TestParseRealPDFs*` 是早期合成语料时代的用例（指向已迁移走的 `goldentest/pdf/` 与根级 `facts.json`），当前目录结构下自动跳过；语料级"事实逐字命中"校验已由 `goldentest/tools/g0_check.py`（页级 pymupdf + chunk 级数据库双闸）承担。
 
 ```bash
 go test ./...        # 跑全部（集成测试未设密码自动跳过）
@@ -416,9 +419,9 @@ go test ./tests/integration -run TestPostgresStore -v
 - **向量检索**：pgvector `<=>` 余弦距离 + HNSW 索引，毫秒级返回
 - **混合检索**：向量（语义）+ tsvector 全文（BM25 风格，gojieba 中文分词）+ pg_trgm 字面（公式/编号），三路 RRF 融合，解决公式/符号字面精确匹配弱项；三条路都遵守 `user_id` / `document_id` 归属过滤（`store.buildFilterClause` 统一生成）
 - **表格解析**：框线表格识别为 Markdown；分块时表格按"表头 + N 行"独立成自包含 chunk（每个子块带表头，值不脱离列名，避免多表挤一 chunk 稀释语义）
-- **公式识别**：字体指纹（Cambria Math / MT Extra / Euclid / Symbol / Times）检测公式区域 → **PyMuPDF 渲染 PDF 并按坐标裁剪公式截图** → 视觉模型（qwen2.5vl）OCR 还原 LaTeX → 公式整块成 chunk 向量化入库（公式块不与其他文本混切；截图失败降级为扁平文本）
+- **公式识别**：字体指纹（Cambria Math / MT Extra / Euclid / Symbol / Times New Roman PS——纯 Times 区域需数学特征字符联合确认）检测公式区域 → **PyMuPDF 渲染 PDF 并按坐标裁剪公式截图** → 视觉模型（配置 `ai.formula.model`，当前 deepseek-ai/DeepSeek-OCR）OCR 还原 LaTeX → 公式整块成 chunk 向量化入库（公式块不与其他文本混切；截图失败降级为扁平文本）
 - **引用溯源**：chunk 带页码，回答带 `[n]` 编号引用
-- **状态追踪**：文档 `pending / ready / failed` 三态，失败保留原因
+- **状态追踪**：文档 `pending / processing / ready / failed` 四态，失败保留原因（异步摄入队列见下）
 - **嵌入模型一致性**：文档与提问必须用同一 embedding 模型（同坐标系）；chat 模型可任意替换
 
 ## 多租户演进设计（归属 + 隔离，✅ 已落地）
@@ -427,7 +430,7 @@ go test ./tests/integration -run TestPostgresStore -v
 >
 > **⚠️ 2026-10 架构演进更新（/search-only）**：本节"每个用户自带 LLM 配置（BYOK）"的前提已不成立——
 > Agent 成为唯一调用方、只调 `/search`（不调 `/ask`）后，RAG 的 chat 模型上浮 Agent，RAG 只剩基础设施模型
-> （embedding bge-m3 / 公式 OCR qwen2.5vl / rerank bge-reranker），且 **embedding 被向量维度一致性强制全局**
+> （embedding bge-m3 / 公式 OCR deepseek-ai/DeepSeek-OCR / rerank bge-reranker），且 **embedding 被向量维度一致性强制全局**
 > （`chunks.embedding VECTOR(1024)` 必须与模型一致，无法按用户）。因此 **待做 ① `user_settings` 已被取代，不再实现**；
 > RAG 侧多租户只剩 **归属 + 隔离**（`user_id` 列 + `X-User-ID` 中间件 + 去重粒度 `(user_id, content_hash)`），不涉及新表。
 > 用户表只在 Agent 仓（users / threads），RAG 靠 user_id 契约关联（详见 Agent 仓 architecture.md §10）。
@@ -492,7 +495,7 @@ go test ./tests/integration -run TestPostgresStore -v
 ### P1：更"工业"
 - ~~**多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）；连接测试接口已就绪。详见上文「多租户演进设计」~~ ⛔ **2026-10 已被 /search-only 架构取代，不再实现**（RAG 只剩基础设施模型且 embedding 强制全局；多租户只剩归属+隔离，见该节顶部演进更新）
 - 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
-- **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 qwen2.5vl:7b 截图 OCR，复杂公式偶发结构错）
+- **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 deepseek-ai/DeepSeek-OCR 截图 OCR，复杂公式偶发结构错）
 - **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格
 - **断页表格识别（待修）**：当前跨页表格被拆成两个 chunk，下页部分可能丢表头、行列错位，需支持跨页合并识别
 - **表格语义化表示**：把表格转"键值句"（`状态码500：错误详情为…`）进向量，缓解数字/符号检索弱项（当前 MD 表格对数字类提问命中一般）
