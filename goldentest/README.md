@@ -70,7 +70,7 @@ goldentest/
 ├── EVAL_REPORT.md       # 评测分析报告（最终基线结论，先看这个）
 ├── AGENT_PROMPT.md      # fact 标注 agent 提示词（加新语料时用子 agent 批量标注）
 ├── data/                # 入 git：docs.json / facts.json / golden_queries.json
-├── tools/               # g0_check.py / run_eval.py
+├── tools/               # g0_check.py / run_eval.py / judge.py（LLM 裁判）
 ├── corpus/              # gitignore：PDF 语料（sha256 校验见 docs.json，恢复方法见其 README）
 └── results/             # gitignore：评测产物
 ```
