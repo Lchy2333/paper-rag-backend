@@ -32,17 +32,11 @@ type documentService interface {
 	Delete(ctx context.Context, id string, userID string) error
 }
 
-// connectionTester 是 LLM 连接测试的依赖抽象（由 *ai.Client 实现）。
-type connectionTester interface {
-	TestConnection(ctx context.Context, req model.ConnectionTest) *model.ConnectionResult
-}
-
 // Handler 聚合所有 HTTP 处理器依赖。
 type Handler struct {
 	ingest         documentService
 	ask            *service.AskService
 	search         *service.SearchService
-	tester         connectionTester
 	maxUploadBytes int64
 	// notifyIngest 摄入门铃：Accept 成功入队后唤醒 worker 立刻抢单（worker.Pool.Kick）。
 	// 可为 nil（本地无 worker 场景/单测），nil 时不按铃，靠 worker 兜底轮询。
@@ -52,7 +46,7 @@ type Handler struct {
 }
 
 // NewHandler 创建处理器。
-func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, tester connectionTester, maxUploadMB int64, notifyIngest func(), adminUsers []string) *Handler {
+func NewHandler(ingest documentService, ask *service.AskService, search *service.SearchService, maxUploadMB int64, notifyIngest func(), adminUsers []string) *Handler {
 	admins := make(map[string]struct{}, len(adminUsers))
 	for _, u := range adminUsers {
 		admins[u] = struct{}{}
@@ -61,7 +55,6 @@ func NewHandler(ingest documentService, ask *service.AskService, search *service
 		ingest:         ingest,
 		ask:            ask,
 		search:         search,
-		tester:         tester,
 		maxUploadBytes: maxUploadMB * 1024 * 1024,
 		notifyIngest:   notifyIngest,
 		adminUsers:     admins,
@@ -249,20 +242,6 @@ func bindOptionalIngestOptions(c *gin.Context) (*model.IngestOptions, error) {
 		return nil, fmt.Errorf("请求格式错误: %v", err)
 	}
 	return opts, nil
-}
-
-// TestConnection 向用户提供的 base_url 发一次最小请求，验证 LLM 连通性。
-// 请求体：{"kind": "embedding"|"chat"|"formula", "base_url": "...", "api_key": "...", "model": "..."}
-// kind: embedding=一次向量化 / chat=一次 "ping" / formula=发一张内置测试图 OCR。
-func (h *Handler) TestConnection(c *gin.Context) {
-	var req model.ConnectionTest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
-		return
-	}
-	result := h.tester.TestConnection(c.Request.Context(), req)
-	logger.Info("connection.test", "kind", req.Kind, "model", req.Model, "base_url", req.BaseURL, "ok", result.OK, "latency_ms", result.LatencyMS)
-	c.JSON(http.StatusOK, result)
 }
 
 // GetDocument 查询单个文档详情（校验归属；admin 可看任何文档）。

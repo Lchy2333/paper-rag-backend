@@ -24,7 +24,7 @@ internal/parser/       # PDF 解析（文本 + 框线表格转 Markdown + 公式
 internal/chunker/      # 分块（文本按字符切，表格按"表头+N 行"自包含切，公式整块独立）
 internal/ai/           # Embedding + Chat + 公式 OCR（图片截图 → LaTeX）+ Rerank 客户端
 internal/render/       # PDF 渲染（PyMuPDF）按公式坐标裁剪截图
-internal/segment/      # 中文分词（gojieba，纯 Go），供 tsvector 全文检索
+internal/segment/      # 中文分词（gojieba：CppJieba 的 cgo 封装，静态链接进二进制，进程内调用；构建需开 cgo）
 internal/store/        # 存储接口 + PostgreSQL 实现（pgvector + tsvector 混合检索）
 internal/service/      # 摄入流水线 / RAG 问答 / 纯检索 / 精排
 internal/httpapi/      # Gin 路由与处理器（含鉴权中间件）
@@ -269,7 +269,6 @@ cd paper-rag-deploy && docker compose up -d --build
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查（豁免鉴权） |
-| POST | `/api/v1/connections/test` | 手动测试 LLM 连通性 |
 | POST | `/api/v1/documents` | 上传一个或多个 PDF（multipart 字段 `file` 可重复）。**异步摄入**：接收段秒回（去重/校验当场反馈），解析/向量化由后台 worker 处理，轮询 `GET /documents/:id` 看 status |
 | GET | `/api/v1/documents` | 列出文档（普通用户只看自己的，admin 全库） |
 | GET | `/api/v1/documents/:id` | 查询文档详情（越权/不存在 404） |
@@ -301,14 +300,6 @@ curl -X POST http://localhost:8080/api/v1/documents/<doc-id>/rechunk \
 ```
 
 > 重分块会重新解析 PDF 并重跑公式 OCR/向量化（慢），期间旧 chunk 一直可用；解析/向量化失败时不动旧数据。
-
-**连接测试**：`kind` 必填（`embedding` / `chat` / `formula`），发一次最小请求验证 base_url + api_key + model 是否可用。formula 会发一张内置测试图给视觉模型 OCR（只看连通性，不看识别结果）。服务器会拦截本机/内网地址（SSRF 防护），结果返回 `{ok, latency_ms, reply, error}`。
-
-```bash
-curl -X POST http://localhost:8080/api/v1/connections/test \
-  -H "Content-Type: application/json" \
-  -d '{"kind": "chat", "base_url": "https://api.siliconflow.cn/v1", "api_key": "sk-xxx", "model": "deepseek-ai/DeepSeek-V3"}'
-```
 
 `/ask` / `/search` 请求体（**`user_id` 已从 body 移除**，改由 `X-User-ID` 头提供）：
 
@@ -460,23 +451,21 @@ go test ./tests/integration -run TestPostgresStore -v
 |----|------|
 | 文档级 RAG 参数 | 上传 `POST /documents`（表单 `chunk_size`/`chunk_overlap`）、重分块 `POST /documents/:id/rechunk`（JSON）支持覆盖默认分块参数；入库存 `documents.chunk_size`/`chunk_overlap` |
 | 重分块接口 | `POST /api/v1/documents/:id/rechunk`：删旧 chunk → 重新解析/分块/向量化 → 写新 |
-| 连接测试接口 | `POST /api/v1/connections/test`：`{kind, base_url, api_key, model}` 发一次最小请求，返回 ok/latency_ms/error；**含基础 SSRF 防护**（禁本机/内网/保留地址） |
 
 **待做 ① 用户 LLM 配置进数据库（BYOK）—— ⛔ 已被 /search-only 架构取代，不再实现**（见顶部演进更新）
 - ~~[ ] 新建 `user_settings` 表：`user_id, base_url, api_key, model, dimension, batch_size, chat_model, ...`~~
 - ~~[ ] **api_key 必须加密存储**（对称加密，密钥走环境变量，禁止明文入库）~~
 - ~~[ ] `ai.Client` 从"启动时建一个全局实例"改为"按用户动态获取"：`user_id → *ai.Client` 的 LRU 缓存池，避免每请求重建 http client；缓存未命中按该用户配置重建，无配置用户回退全局默认~~
 - ~~[ ] 服务层/Handler 需要拿到当前用户身份（见待做 ②）才能选对 client~~
-- ~~[ ] 连接测试接口改为可"测试已存配置"（不带 creds，用库里的）~~
 
 **待做 ② 鉴权中间件（多用户的前提）**
 - [ ] 登录/注册 + token（如 JWT），`/api/v1` 下加鉴权中间件
 - [ ] 把 `IngestService.defaultOwnerUserID = "local"` 换成请求上下文里的真实 user_id
 - [ ] 检索归属过滤（store 已按 user_id 过滤）在鉴权后即自然生效
 
-**顺序建议**：先做 ② 鉴权（拿到真实身份）→ 再做 ① BYOK（按身份取配置）。两者都贴近上线时再动；当前单用户阶段，config.yaml 全局默认 + 连接测试接口足够用。
+**顺序建议**：先做 ② 鉴权（拿到真实身份）→ 再做 ① BYOK（按身份取配置）。两者都贴近上线时再动；当前单用户阶段，config.yaml 全局默认足够用。
 
-**相关注意**：config.yaml 仍保留 `ai`/`rag` 节作为全局默认；检索参数（`top_k` 等）是查询级，本就由提问请求体携带；SSRF 防护目前只做了基础拦截（DNS 重绑定无法完全避免），生产建议再加代理层过滤。
+**相关注意**：config.yaml 仍保留 `ai`/`rag` 节作为全局默认；检索参数（`top_k` 等）是查询级，本就由提问请求体携带。
 
 ## Roadmap / 下一步规划
 
@@ -493,7 +482,7 @@ go test ./tests/integration -run TestPostgresStore -v
 | 流式输出（SSE）+ 多轮对话 | Agent 项目 | RAG 保持无状态单轮，状态/流式由 Agent 持有 |
 
 ### P1：更"工业"
-- ~~**多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）；连接测试接口已就绪。详见上文「多租户演进设计」~~ ⛔ **2026-10 已被 /search-only 架构取代，不再实现**（RAG 只剩基础设施模型且 embedding 强制全局；多租户只剩归属+隔离，见该节顶部演进更新）
+- ~~**多租户 BYOK**：用户 LLM 配置进库（api_key 加密存储）+ 按用户 client 缓存池 + 鉴权中间件（把 `user_id="local"` 换成真实身份）。详见上文「多租户演进设计」~~ ⛔ **2026-10 已被 /search-only 架构取代，不再实现**（RAG 只剩基础设施模型且 embedding 强制全局；多租户只剩归属+隔离，见该节顶部演进更新）
 - 多格式解析（DOCX/PPT/HTML）+ 扫描件 OCR
 - **公式识别增强**：① 覆盖手写/扫描图片公式（当前检测依赖字体指纹，纯图片公式无法定位区域，需要视觉检测模型）；② 支持正文内联公式；③ 换更专业的公式 OCR 模型（Pix2Text / UniMERNet，当前用 deepseek-ai/DeepSeek-OCR 截图 OCR，复杂公式偶发结构错）
 - **表格解析增强**：支持纯线段表格（reportlab 等用 `m/l/S` 画的表）、无框线对齐表格、合并单元格

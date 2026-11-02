@@ -27,24 +27,6 @@ type IngestOptions struct {
 	ChunkOverlap *int `json:"chunk_overlap"`
 }
 
-// ConnectionTest 是用户手动测试 LLM 连通性的请求。
-// kind 取值：embedding（发一条最小向量化请求）/ chat（发一条最小对话请求）/ formula（发一张内置 1x1 测试图给视觉模型 OCR）。
-type ConnectionTest struct {
-	Kind    string `json:"kind" binding:"required"`
-	BaseURL string `json:"base_url" binding:"required"`
-	APIKey  string `json:"api_key"`
-	Model   string `json:"model" binding:"required"`
-}
-
-// ConnectionResult 是连接测试的结果。
-type ConnectionResult struct {
-	OK        bool   `json:"ok"`
-	Kind      string `json:"kind"`
-	LatencyMS int64  `json:"latency_ms"`
-	Reply     string `json:"reply,omitempty"` // chat 测试时模型的回复
-	Error     string `json:"error,omitempty"`
-}
-
 // Chunk 是文档被切分后的文本片段，带向量用于检索。
 type Chunk struct {
 	ID         string    `json:"id"`

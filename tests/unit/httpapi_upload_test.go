@@ -47,7 +47,7 @@ func (f *fakeIngester) Delete(context.Context, string, string) error            
 
 func TestHandler_UploadMultipleFiles(t *testing.T) {
 	ingester := &fakeIngester{errs: map[string]error{"bad.pdf": errors.New("PDF 解析失败: test")}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil, nil)
+	h := httpapi.NewHandler(ingester, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -107,7 +107,7 @@ func TestHandler_UploadMultipleFiles(t *testing.T) {
 
 func TestHandler_UploadDuplicate(t *testing.T) {
 	ingester := &fakeIngester{dups: map[string]error{"dup.pdf": service.ErrDuplicateDocument}}
-	h := httpapi.NewHandler(ingester, nil, nil, nil, 20, nil, nil)
+	h := httpapi.NewHandler(ingester, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -149,7 +149,7 @@ func TestHandler_UploadDuplicate(t *testing.T) {
 }
 
 func TestHandler_UploadNoFile(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents", bytes.NewBufferString("no file"))
@@ -166,7 +166,7 @@ func TestHandler_UploadNoFile(t *testing.T) {
 // 上传接收成功后应按门铃唤醒 worker（每个新入队文件一次）。
 func TestHandler_UploadKicksIngest(t *testing.T) {
 	var kicks int32
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, func() { atomic.AddInt32(&kicks, 1) }, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20, func() { atomic.AddInt32(&kicks, 1) }, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := &bytes.Buffer{}
@@ -191,38 +191,8 @@ func TestHandler_UploadKicksIngest(t *testing.T) {
 	}
 }
 
-// fakeTester 是 connectionTester 的假实现。
-type fakeTester struct{}
-
-func (f *fakeTester) TestConnection(_ context.Context, req model.ConnectionTest) *model.ConnectionResult {
-	return &model.ConnectionResult{OK: true, Kind: req.Kind, LatencyMS: 42, Reply: "pong"}
-}
-
-func TestHandler_ConnectionTest(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, &fakeTester{}, 20, nil, nil)
-	r := httpapi.NewRouter(h, "")
-
-	body := `{"kind":"embedding","base_url":"http://example.com/v1","api_key":"x","model":"bge-m3"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/connections/test", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "admin")
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.Code)
-	}
-	var res model.ConnectionResult
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("解析响应失败: %v", err)
-	}
-	if !res.OK || res.Kind != "embedding" || res.LatencyMS != 42 {
-		t.Fatalf("连接测试结果不对: %+v", res)
-	}
-}
-
 func TestHandler_RechunkDocument(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	body := `{"chunk_size":400,"chunk_overlap":50}`
@@ -247,7 +217,7 @@ func TestHandler_RechunkDocument(t *testing.T) {
 }
 
 func TestHandler_RechunkDocumentBadJSON(t *testing.T) {
-	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, nil, 20, nil, nil)
+	h := httpapi.NewHandler(&fakeIngester{}, nil, nil, 20, nil, nil)
 	r := httpapi.NewRouter(h, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/documents/abc/rechunk", bytes.NewBufferString(`{"chunk_size":}`))
