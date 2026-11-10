@@ -8,15 +8,26 @@ import (
 
 // accessLogFormatter 统一访问日志格式（与 paper-rag-agent 侧对齐）：
 //
-//	[ACCESS] 2026/10/25 - 06:17:40 | 200 | 17.851µs | 172.18.0.4 | GET "/api/v1/health"
+//	[ACCESS] 2026/10/25 - 06:17:40 | 200 | 17.851µs | 172.18.0.4 | GET "/api/v1/health" | rid=... run_id=-
 func accessLogFormatter(param gin.LogFormatterParams) string {
-	return fmt.Sprintf("[ACCESS] %s | %d | %s | %s | %s %q\n",
+	// rid/run_id 由 RequestID 中间件写入 c.Keys，formatter 在整条链跑完后读取
+	rid, _ := param.Keys["rid"].(string)
+	if rid == "" {
+		rid = "-"
+	}
+	runID, _ := param.Keys["run_id"].(string)
+	if runID == "" {
+		runID = "-"
+	}
+	return fmt.Sprintf("[ACCESS] %s | %d | %s | %s | %s %q | rid=%s run_id=%s\n",
 		param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 		param.StatusCode,
 		param.Latency,
 		param.ClientIP,
 		param.Method,
 		param.Path,
+		rid,
+		runID,
 	)
 }
 
@@ -27,7 +38,8 @@ func accessLogFormatter(param gin.LogFormatterParams) string {
 func NewRouter(h *Handler, apiKey string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.LoggerWithFormatter(accessLogFormatter), gin.Recovery())
+	// RequestID 必须在 Logger 之前注册：formatter 从 c.Keys 读 rid/run_id
+	r.Use(RequestID(), gin.LoggerWithFormatter(accessLogFormatter), gin.Recovery())
 
 	// 健康检查不鉴权：不泄露业务数据，且 docker-compose healthcheck 无需配置 key
 	r.GET("/api/v1/health", h.Health)
