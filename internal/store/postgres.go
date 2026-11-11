@@ -17,6 +17,7 @@ import (
 	"paper-rag-backend/internal/logger"
 	"paper-rag-backend/internal/model"
 	"paper-rag-backend/internal/segment"
+	"paper-rag-backend/internal/span"
 )
 
 // PostgresStore 是基于 PostgreSQL + pgvector 的 Store 实现，
@@ -272,10 +273,10 @@ func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, t
 	// 向量路
 	searchStart := time.Now()
 	vectorResults, err := s.searchVector(ctx, query, topK, threshold, opts)
+	span.Log(ctx, "rag.vector_search", searchStart, err, "hits", len(vectorResults))
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("search.vector_done", "hits", len(vectorResults), "duration_ms", time.Since(searchStart).Milliseconds())
 
 	// 非混合：直接返回向量结果
 	if !opts.UseHybrid || strings.TrimSpace(opts.QueryText) == "" {
@@ -283,22 +284,22 @@ func (s *PostgresStore) Search(ctx context.Context, query []float32, topK int, t
 	}
 
 	// 混合：向量路 + tsvector 全文路（主力，真 BM25 风格）+ pg_trgm 字面路（补充公式/符号）→ RRF 合并
+	tsvStart := time.Now()
 	tsvResults, err := s.searchTsvector(ctx, opts.QueryText, topK, opts)
+	span.Log(ctx, "rag.fulltext", tsvStart, err, "hits", len(tsvResults))
 	if err != nil {
 		// 全文路失败不阻塞：降级到 pg_trgm 字面路。这里必须打 warn——
 		// 失败被吞掉会让结果悄悄变差且无从察觉，warn 暴露降级。
 		logger.Warn("search.tsv_failed", "err", err)
 		tsvResults = nil
-	} else {
-		logger.Debug("search.tsv_done", "hits", len(tsvResults))
 	}
 
+	lexStart := time.Now()
 	lexResults, err := s.searchLexical(ctx, opts.QueryText, topK, opts)
+	span.Log(ctx, "rag.lexical", lexStart, err, "hits", len(lexResults))
 	if err != nil {
 		logger.Warn("search.lex_failed", "err", err)
 		lexResults = nil
-	} else {
-		logger.Debug("search.lex_done", "hits", len(lexResults))
 	}
 
 	merged := rrfMerge(vectorResults, tsvResults, topK, threshold)

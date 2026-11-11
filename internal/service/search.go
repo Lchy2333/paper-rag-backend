@@ -9,6 +9,7 @@ import (
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/logger"
 	"paper-rag-backend/internal/model"
+	"paper-rag-backend/internal/span"
 	"paper-rag-backend/internal/store"
 )
 
@@ -89,12 +90,12 @@ func (s *SearchService) Search(ctx context.Context, q model.Question, userID str
 	emit(ProgressEvent{Stage: "embed", Status: "start"})
 	embStart := time.Now()
 	vectors, err := s.ai.Embed(ctx, []string{q.Query})
+	span.Log(ctx, "rag.embed_query", embStart, err)
 	if err != nil {
 		logger.Error("search.embed_failed", "err", err)
 		return nil, err
 	}
 	emit(ProgressEvent{Stage: "embed", Status: "done", Ms: time.Since(embStart).Milliseconds()})
-	logger.Debug("search.embed_done", "duration_ms", time.Since(embStart).Milliseconds())
 
 	// 2. 检索参数（与 AskService.Ask 一致：限 user_id / doc_ids，强制混合）
 	topK := s.cfg.TopK
@@ -118,13 +119,12 @@ func (s *SearchService) Search(ctx context.Context, q model.Question, userID str
 		UseHybrid: resolveHybrid(q.Hybrid),
 		QueryText: q.Query,
 	})
+	span.Log(ctx, "rag.search", searchStart, err, "hits", len(results), "top_k", pool)
 	if err != nil {
 		logger.Error("search.search_failed", "err", err)
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}
 	emit(ProgressEvent{Stage: "retrieve", Status: "done", Ms: time.Since(searchStart).Milliseconds(), Hits: len(results)})
-	logger.Debug("search.search_done", "hits", len(results), "top_k", pool,
-		"duration_ms", time.Since(searchStart).Milliseconds())
 
 	// 2.5 精排：候选超过 topK 时 cross-encoder 重打分排序；失败自动降级原顺序（fail-open）
 	if useRerank && len(results) > topK {

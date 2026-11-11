@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"paper-rag-backend/internal/span"
 )
 
 // newRequestID 生成 12 位 hex rid（与 Agent 侧 uuid4().hex[:12] 同长度，便于跨服务 grep）。
@@ -40,6 +42,9 @@ func RequestID() gin.HandlerFunc {
 		}
 		c.Set("rid", rid)
 		c.Set("run_id", runID)
+		// 塞进标准 context：c.Keys 只在 handler 层可达，service/store/ai 层
+		// 拿的是 ctx——不注入的话 span 行的 rid 断在 handler 边界（全记 "-"）。
+		c.Request = c.Request.WithContext(span.WithRequest(c.Request.Context(), rid, runID))
 		c.Writer.Header().Set("X-Request-ID", rid) // 回显：调用方报障时直接引用
 		c.Next()
 	}

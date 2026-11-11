@@ -20,6 +20,7 @@ import (
 	"paper-rag-backend/internal/model"
 	"paper-rag-backend/internal/parser"
 	"paper-rag-backend/internal/render"
+	"paper-rag-backend/internal/span"
 	"paper-rag-backend/internal/store"
 )
 
@@ -84,8 +85,10 @@ func resolveChunkConfig(base chunker.ChunkConfig, opts *model.IngestOptions) (ch
 // userID 为 "" 表示 admin 超级用户（不过滤归属）。
 // opts 为 nil 或字段为空时回退到文档当前使用的参数，再回退全局默认。
 // 失败时不删除已有 chunk（保持旧数据可用），仅返回错误。
-func (s *IngestService) Rechunk(ctx context.Context, id string, userID string, opts *model.IngestOptions) (*model.Document, error) {
-	doc, err := s.store.GetDocument(ctx, id, userID)
+//
+// 命名返回值：尾部 defer 的 span 要读最终 err，覆盖所有 return 路径。
+func (s *IngestService) Rechunk(ctx context.Context, id string, userID string, opts *model.IngestOptions) (doc *model.Document, err error) {
+	doc, err = s.store.GetDocument(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,18 +125,22 @@ func (s *IngestService) Rechunk(ctx context.Context, id string, userID string, o
 	start := time.Now()
 	l.Info("rechunk.start", "old_chunks", doc.ChunkCount, "old_chunk_size", doc.ChunkSize, "new_chunk_size", cfg.Size, "new_chunk_overlap", cfg.Overlap)
 
+	// span：同步接口（ctx 带上传请求的 rid）——重建整段计时，doc_id 作关联键
+	defer func() { span.Log(ctx, "ingest.rechunk", start, err, "doc_id", doc.ID, "chunks", doc.ChunkCount) }()
+
 	models, err := s.buildChunkModels(ctx, f, fi.Size(), diskPath, doc.Filename, cfg, doc, l)
 	if err != nil {
 		// 重分块失败：不动已有 chunks，只报错
 		return doc, fmt.Errorf("重新分块失败: %w", err)
 	}
 
-	// 删旧 → 写新 → 更新文档元数据
-	if err := s.store.DeleteChunks(ctx, doc.ID); err != nil {
+	// 删旧 → 写新 → 更新文档元数据（err 用外层赋值而非 if 内声明：
+	// 尾部 defer 的 span 要读到真实成败，if-scope 的 err 会 shadow 掉）
+	if err = s.store.DeleteChunks(ctx, doc.ID); err != nil {
 		l.Error("store.delete_chunks_failed", "err", err)
 		return doc, fmt.Errorf("删除旧 chunk 失败: %w", err)
 	}
-	if err := s.store.AddChunks(ctx, models); err != nil {
+	if err = s.store.AddChunks(ctx, models); err != nil {
 		l.Error("store.add_chunks_failed", "chunks", len(models), "err", err)
 		return doc, fmt.Errorf("写入新 chunk 失败: %w", err)
 	}
@@ -142,7 +149,7 @@ func (s *IngestService) Rechunk(ctx context.Context, id string, userID string, o
 	doc.ChunkOverlap = cfg.Overlap
 	doc.Status = "ready"
 	doc.Error = ""
-	if err := s.store.SaveDocument(ctx, doc); err != nil {
+	if err = s.store.SaveDocument(ctx, doc); err != nil {
 		return doc, err
 	}
 	l.Info("rechunk.done", "chunks", doc.ChunkCount, "duration_ms", time.Since(start).Milliseconds())
@@ -183,7 +190,7 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 
 	// 任务级 logger：本文档所有阶段日志都带 doc_id，跨同步/异步两段串联整条链路
 	l := logger.With("doc_id", doc.ID, "file", filename)
-	start := time.Now()
+	accStart := time.Now()
 	l.Info("ingest.accept", "size_bytes", size, "chunk_size", cfg.Size, "chunk_overlap", cfg.Overlap)
 
 	// 1. 落盘保存原始文件，同时计算内容哈希（SHA-256）用于去重
@@ -225,7 +232,9 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 		l.Error("store.save_document_failed", "err", err)
 		return nil, fmt.Errorf("保存文档记录失败: %w", err)
 	}
-	l.Info("ingest.queued", "duration_ms", time.Since(start).Milliseconds())
+	// span：同步段（落盘+去重+入队）计时。ctx 是上传请求的——rid 可用，
+	// doc_id 作 extra 把「上传请求 rid → 文档」记在同一行，worker 侧 span 靠 doc_id 串联。
+	span.Log(ctx, "ingest.accept", accStart, nil, "doc_id", doc.ID)
 	return doc, nil
 }
 
@@ -236,7 +245,9 @@ func (s *IngestService) Accept(ctx context.Context, file io.ReaderAt, size int64
 // 幂等性：开工先无条件 DeleteChunks 清场——上次崩溃可能停在
 // "AddChunks 已写库、status 还没改 ready" 的中间态，重跑直接 AddChunks 会插入重复 chunk
 // （chunk 主键是新 ID，无唯一约束拦不住）。删旧重写后，本函数可安全重入。
-func (s *IngestService) Run(ctx context.Context, docID string) error {
+//
+// 命名返回值：尾部 defer 的 span 要读最终 err；错误分支用外层 err 赋值（不 shadow）。
+func (s *IngestService) Run(ctx context.Context, docID string) (err error) {
 	// worker 内部操作（摄入流水线异步段），不受用户归属过滤——传空串 = 全库
 	doc, err := s.store.GetDocument(ctx, docID, "")
 	if err != nil {
@@ -268,10 +279,13 @@ func (s *IngestService) Run(ctx context.Context, docID string) error {
 	}
 
 	start := time.Now()
+	// span：worker 无请求上下文（rid 记 "-"），doc_id 作关联键——与 ingest.accept
+	// span 行（上传请求的 rid + doc_id）衔接，把「上传 → 异步处理」串成一条链。
+	defer func() { span.Log(ctx, "ingest.total", start, err, "doc_id", doc.ID, "chunks", doc.ChunkCount) }()
 	l.Info("ingest.start", "size_bytes", doc.SizeBytes, "chunk_size", cfg.Size, "chunk_overlap", cfg.Overlap)
 
 	// 幂等清场：清掉上次崩溃可能留下的半成品 chunks（正常情况是空删 no-op）
-	if err := s.store.DeleteChunks(ctx, doc.ID); err != nil {
+	if err = s.store.DeleteChunks(ctx, doc.ID); err != nil {
 		l.Error("store.delete_chunks_failed", "err", err)
 		return fmt.Errorf("清理旧分块失败: %w", err)
 	}
@@ -284,7 +298,8 @@ func (s *IngestService) Run(ctx context.Context, docID string) error {
 	}
 
 	// 入库：Accept 阶段已存 pending 记录（chunks 外键依赖已满足），写 chunks 后更新为 ready
-	if err := s.store.AddChunks(ctx, models); err != nil {
+	storeStart := time.Now()
+	if err = s.store.AddChunks(ctx, models); err != nil {
 		l.Error("store.add_chunks_failed", "chunks", len(models), "err", err)
 		s.fail(doc, fmt.Sprintf("入库失败: %v", err))
 		return err
@@ -292,9 +307,10 @@ func (s *IngestService) Run(ctx context.Context, docID string) error {
 	doc.ChunkCount = len(models)
 	doc.Status = "ready"
 	doc.Error = ""
-	if err := s.store.SaveDocument(ctx, doc); err != nil {
+	if err = s.store.SaveDocument(ctx, doc); err != nil {
 		return err
 	}
+	span.Log(ctx, "ingest.store", storeStart, nil, "doc_id", doc.ID, "chunks", doc.ChunkCount)
 	l.Info("ingest.done", "chunks", doc.ChunkCount, "pages", doc.PageCount, "duration_ms", time.Since(start).Milliseconds())
 	return nil
 }
@@ -306,6 +322,12 @@ func (s *IngestService) buildChunkModels(ctx context.Context, file io.ReaderAt, 
 	// 2. 解析 PDF
 	parseStart := time.Now()
 	parsed, err := parser.ParsePDF(file, size)
+	if parsed != nil {
+		// pages 在成功时才有意义（parsed 为 nil 时取字段会 panic）
+		span.Log(ctx, "ingest.parse", parseStart, err, "doc_id", doc.ID, "pages", parsed.PageCount)
+	} else {
+		span.Log(ctx, "ingest.parse", parseStart, err, "doc_id", doc.ID)
+	}
 	if err != nil {
 		l.Error("parse.failed", "err", err)
 		return nil, fmt.Errorf("PDF 解析失败: %w", err)
@@ -320,8 +342,13 @@ func (s *IngestService) buildChunkModels(ctx context.Context, file io.ReaderAt, 
 	// 3. 分块：文本块按字符切，表格块按"表头 + N 行"自包含切，公式块整块独立
 	chunkStart := time.Now()
 	chunks := chunker.SplitBlocks(parsed.Blocks, cfg)
+	chunkErr := error(nil)
 	if len(chunks) == 0 {
-		return nil, errors.New("PDF 未能提取到文本内容")
+		chunkErr = errors.New("PDF 未能提取到文本内容")
+	}
+	span.Log(ctx, "ingest.chunk", chunkStart, chunkErr, "doc_id", doc.ID, "chunks", len(chunks))
+	if chunkErr != nil {
+		return nil, chunkErr
 	}
 	textChunks, tableChunks, formulaChunks := countChunkTypes(chunks)
 	l.Info("chunk.done", "chunks", len(chunks), "text", textChunks, "table", tableChunks, "formula", formulaChunks, "duration_ms", time.Since(chunkStart).Milliseconds())
@@ -379,6 +406,7 @@ func (s *IngestService) buildChunkModels(ctx context.Context, file io.ReaderAt, 
 	embStart := time.Now()
 	l.Debug("embed.start", "chunks", len(chunks), "model", s.ai.EmbedModel(), "batch_size", s.ai.EmbedBatchSize())
 	vectors, err := s.ai.Embed(ctx, contents)
+	span.Log(ctx, "ingest.embed", embStart, err, "doc_id", doc.ID, "chunks", len(chunks))
 	if err != nil {
 		l.Error("embed.failed", "chunks", len(chunks), "err", err)
 		return nil, fmt.Errorf("向量化失败: %w", err)

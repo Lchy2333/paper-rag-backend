@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"paper-rag-backend/internal/logger"
+	"paper-rag-backend/internal/span"
 )
 
 // rerankRequest 是 /rerank 请求体。
@@ -55,10 +55,17 @@ type RerankResult struct {
 
 // Rerank 用 cross-encoder 对 (query, documents) 逐对打分，返回按分数降序的结果。
 // 返回的 Index 用于调用方回查自己的候选数组（API 不回传文档内容）。
-func (c *Client) Rerank(ctx context.Context, query string, documents []string, topN int) ([]RerankResult, error) {
+//
+// span：命名返回值 + defer，覆盖所有 return 路径（err≠nil → ok=0）。
+// fail-open 语义在 service 层（rerankResults 内部降级），本层如实记成败。
+func (c *Client) Rerank(ctx context.Context, query string, documents []string, topN int) (out []RerankResult, err error) {
 	if len(documents) == 0 {
 		return nil, nil
 	}
+	spanStart := time.Now()
+	defer func() {
+		span.Log(ctx, "rag.rerank", spanStart, err, "docs", len(documents), "hits", len(out))
+	}()
 	// 卫语句只管"有没有模型可调"（configured）；"要不要调"（enabled/请求级开关）
 	// 是 service 层的策略决定，这里不越权拦截。
 	if !c.RerankConfigured() {
@@ -85,7 +92,6 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []string, t
 	// 云 API 必须带 Bearer 鉴权（与本地 Ollama 的占位 key 不同）
 	req.Header.Set("Authorization", "Bearer "+c.rerankAPIKey())
 
-	start := time.Now()
 	resp, err := c.rerankHTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("rerank 请求失败: %w", err)
@@ -102,7 +108,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []string, t
 		return nil, fmt.Errorf("rerank 响应解析失败: %w", err)
 	}
 
-	out := make([]RerankResult, 0, len(rr.Results))
+	out = make([]RerankResult, 0, len(rr.Results))
 	for _, it := range rr.Results {
 		if it.Index < 0 || it.Index >= len(documents) {
 			continue // 防御：API 返回越界下标时跳过，不 panic
@@ -110,9 +116,6 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []string, t
 		out = append(out, RerankResult{Index: it.Index, Score: it.RelevanceScore})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Score > out[j].Score })
-
-	logger.Debug("rerank.done", "docs", len(documents), "hits", len(out),
-		"duration_ms", time.Since(start).Milliseconds())
 	return out, nil
 }
 
