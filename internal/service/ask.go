@@ -10,6 +10,7 @@ import (
 	"paper-rag-backend/internal/config"
 	"paper-rag-backend/internal/logger"
 	"paper-rag-backend/internal/model"
+	"paper-rag-backend/internal/span"
 	"paper-rag-backend/internal/store"
 )
 
@@ -38,11 +39,11 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 	// 1. 问题向量化
 	embStart := time.Now()
 	vectors, err := s.ai.Embed(ctx, []string{q.Query})
+	span.Log(ctx, "rag.embed_query", embStart, err)
 	if err != nil {
 		logger.Error("ask.embed_failed", "err", err)
 		return nil, err
 	}
-	logger.Debug("ask.embed_done", "duration_ms", time.Since(embStart).Milliseconds())
 
 	// 2. 向量检索（ask 是全局检索——仅 admin 可调，鉴权在 handler 层）
 	topK := s.cfg.TopK
@@ -64,11 +65,11 @@ func (s *AskService) Ask(ctx context.Context, q model.Question) (*model.Answer, 
 		UseHybrid: resolveHybrid(q.Hybrid),
 		QueryText: q.Query,
 	})
+	span.Log(ctx, "rag.search", searchStart, err, "hits", len(results), "top_k", pool)
 	if err != nil {
 		logger.Error("ask.search_failed", "err", err)
 		return nil, fmt.Errorf("检索失败: %w", err)
 	}
-	logger.Debug("ask.search_done", "hits", len(results), "top_k", pool, "duration_ms", time.Since(searchStart).Milliseconds())
 
 	// 2.5 精排：候选超过 topK 时 cross-encoder 重打分排序；失败自动降级原顺序（fail-open）
 	if useRerank && len(results) > topK {
