@@ -2,8 +2,13 @@
 -- 用法: psql -U postgres -f db/init.sql
 -- 或在 Navicat 中新建数据库 paper_rag 后，在查询窗口执行本文件内容。
 
--- 1. 开启向量扩展（每个库执行一次）
+-- 1. 开启扩展（每个库执行一次）
 CREATE EXTENSION IF NOT EXISTS vector;
+-- pg_trgm：字面检索路（公式/符号/编号兜底）的 similarity() 函数与 ILIKE 索引支持。
+-- ⚠️ 曾在生产库遗漏（2026-11 压测发现）：缺它时 rag.lexical 100% 报
+--    "function similarity(text, unknown) does not exist"，且被静默降级掩盖——
+--    检索照常返回，只是字面路整段失效（search.lex_failed warn 刷屏）。
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- 2. 文档表：每篇论文一行
 -- user_id: 文档归属者，由 X-User-ID 头注入（admin 为全库超级用户）。
@@ -68,3 +73,6 @@ CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 
 -- 4.2 全文检索索引：tsvector GIN（BM25 风格全文检索）
 CREATE INDEX IF NOT EXISTS idx_chunks_tsv ON chunks USING gin (tsv);
+
+-- 4.3 字面检索索引：pg_trgm GIN（ILIKE / similarity 加速，配合字面路 SQL）
+CREATE INDEX IF NOT EXISTS idx_chunks_content_trgm ON chunks USING gin (content gin_trgm_ops);
