@@ -87,7 +87,8 @@ rag:
   similarity_threshold: 0.0
   # 异步摄入 worker 数（= 解析/OCR/向量化流水线的并发上限，天然限流），默认 2。
   # 上传接口只做接收段秒回，慢活由这些 worker 异步处理（见 AGENTS.md「异步摄入实现备忘」）。
-  ingest_workers: 2
+  # 可用环境变量 INGEST_WORKERS 覆盖（本地 .env / 生产 compose env_file），缺省 2。
+  ingest_workers: ${INGEST_WORKERS:-2}
   # 检索不到相关内容时的兜底回复
   no_context_reply: "抱歉，在已上传的文档中没有找到与您问题相关的内容。"
 
@@ -101,7 +102,9 @@ database:
   password: "${POSTGRES_PASSWORD}"
   dbname: "paper_rag"
   sslmode: "disable"
-  max_conns: 10
+  # 连接池上限，可用环境变量 DB_MAX_CONNS 覆盖（本地 .env / 生产 compose env_file），缺省 10。
+  # 扩池前先确认 PG 实例 max_connections 与内存预算（见 loadtest/report-压测总报告.md §6 改进项 P2）。
+  max_conns: ${DB_MAX_CONNS:-10}
 
 render:
   # PDF 渲染（公式区域截图）：用 PyMuPDF（MuPDF 的 Python 绑定）

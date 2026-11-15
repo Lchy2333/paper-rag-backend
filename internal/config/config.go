@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"regexp"
@@ -154,6 +155,8 @@ func pgQuote(s string) string {
 
 // Load 从 path 读取 YAML 配置并解析环境变量占位符。
 func Load(path string) (*Config, error) {
+	loadDotEnv() // 先加载 .env（可选），为 ${VAR} 占位符供值
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
@@ -174,6 +177,46 @@ func Load(path string) (*Config, error) {
 }
 
 var envPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}`)
+
+// loadDotEnv 尝试读取工作目录下的 .env（KEY=VALUE 行，# 开头为注释，支持 export 前缀），
+// 只填充当前不存在的环境变量——真实环境变量（compose env_file / 系统 export）优先。
+// 生产容器内没有 .env 文件（配置经 compose env_file 注入），此函数静默跳过。
+func loadDotEnv() {
+	f, err := os.Open(".env")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "export ")
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		if k == "" {
+			continue
+		}
+		// 行内注释：带引号的值取引号内内容；未加引号的值截断 " #"（空白+#）之后的内容，
+		// 避免把 "10  # 说明" 整串当值（int 字段会解析失败）。
+		if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') {
+			if end := strings.IndexByte(v[1:], v[0]); end >= 0 {
+				v = v[1 : 1+end]
+			}
+		} else if i := strings.Index(v, " #"); i >= 0 {
+			v = strings.TrimSpace(v[:i])
+		}
+		if _, exists := os.LookupEnv(k); !exists {
+			_ = os.Setenv(k, v)
+		}
+	}
+}
 
 // expandEnv 将 ${VAR} 或 ${VAR:-default} 替换为环境变量值。
 func expandEnv(data []byte) []byte {
