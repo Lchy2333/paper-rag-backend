@@ -5,11 +5,11 @@ server:
   upload_dir: "./uploads"
   read_timeout_sec: 60
   write_timeout_sec: 300
-  # 服务间鉴权：Agent → RAG 调用时须携带请求头 X-API-Key: <此值>。
-  # 留空 = 不启用鉴权（本地开发模式）；生产建议配置。
-  # 用法：设置环境变量 RAG_API_KEY，并把下行改为 api_key: "${RAG_API_KEY}"
+  # 服务间鉴权：Agent/MCP → RAG 调用时须携带请求头 X-API-Key: <此值>。
+  # 生产：值来自环境变量 RAG_API_KEY（compose env_file 注入，agent/mcp 两侧须配同值）；
+  # 本地开发：本文件改回 ""，或本地 .env 不设 RAG_API_KEY 且下行留空。
   # 生成方式：python -c "import secrets; print(secrets.token_urlsafe(32))"
-  api_key: ""
+  api_key: "${RAG_API_KEY}"
   # 超级用户（Agent 的 user_id，通常是 UUID）：全库检索/管理，ask 仅限其调用。
   # 例：admin_users: ["c38e2e80-....-...."]
   admin_users: []
